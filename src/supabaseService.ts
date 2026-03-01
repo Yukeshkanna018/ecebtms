@@ -302,11 +302,11 @@ export const supabaseService = {
 
         // The rotation mapping derived from the February spreadsheet images
         const triadRotationMappings = [
-            [1, 2, 3, 4, 5], // Step 0: Triad 1->Group 1, T2->G2, etc. (Feb 11, 12, 13, 16)
-            [3, 5, 4, 2, 1], // Step 1: Triad 1->Group 3, T2->G5, T3->G4, T4->G2, T5->G1 (Feb 17, 18, 19, 20)
-            [2, 1, 5, 3, 4], // Step 2: (Feb 21, 24, 25, 26)
-            [4, 3, 1, 5, 2], // Step 3: (Next rotation)
-            [5, 4, 2, 1, 3]  // Step 4: (Final rotation in cycle)
+            [1, 2, 3, 4, 5], // Step 0: [1,2,3,4,5]
+            [5, 4, 1, 3, 2], // Step 1: Exact match for Feb 17, 18, 19, 20
+            [2, 1, 4, 5, 3], // Step 2: Exact match for Feb 21, 24, 25, 26
+            [4, 5, 2, 1, 3], // Step 3: Predicted next logic
+            [3, 3, 5, 2, 1]  // Step 4: Predicted next logic
         ];
 
         const febHardcoded: Record<string, string[]> = {
@@ -316,11 +316,11 @@ export const supabaseService = {
             "2026-02-16": ["MATTHEW PAULS.A", "GURU VIGNESHWARAN.S", "BRINTHA.J", "MAHALAKSHMI.G", "UMA MAHESWARI.M", "YOGESH.K", "GAUTHAM.S", "SRIMATHI.B", "PRINCE VICTOR.A", "PRADHIKSHA.M.P", "DINESH PANDI.R", "YAZHINI.M", "HARSHVARDHAN.S", "MOHAMAD SALMANKHAN.N", "DEEPIKASRI.R.K"],
             "2026-02-17": ["DHAKSHANA.K", "ABISHEK.S", "HARSHINI.S.D", "KARTHIKEYAN.P", "DHARUNYA SHREE.G", "HIBSA FARITH.S.H", "NAVANEETHA KRISHNAN.R", "ALLEN VICTOR.A", "HARSHITHAA SHREE.R", "SHARMILA.J", "HEMA VARSHINI.A", "HARSHINI.S", "KARTHICK PANDIAN.M", "KABIL VISHWA.TM", "HARI PRASATH.G"],
             "2026-02-18": ["SENTHAMILSELVI.M", "KHAN MOHAMAD.S", "SWETHA ROSE.S", "PADMASINDUJA.K", "LAKSHMI.L", "BOOPESH.K.V", "HARICHARAN.S.P", "SAKTHI DIVASHKAR.M", "HARISH KARTHICK.R", "VENKATAPRIYA.S", "YUVASRI.K", "SUJITHA.J.T", "BALAJI.N", "NITESH VARMAN.M", "MAHENDRAN.N.P"],
-            "2026-02-19": ["YOGAHARANI.A", "MAGATHI.M", "SHRUTI.K", "ABISHEK MILTON.T", "DIVYESH SANKAR.N.K", "GOKUL.S", "VIMAL.V.S", "RAHUL.P", "MOHAMADYUNUS.R", "LATHIKA.S", "DEVIPRIYA.T", "SANTHOSHKANNA.S", "PRIYADHARSHINI.K", "HARIHARAN.S", "YETHEESHWAR.B.R"],
+            "2026-02-19": ["YOGAHARANI.A", "MAGATHI.M", "SHRUTI.K", "ABISHEK MILTON.T", "DIVYESH SANKAR.N.K", "GOKUL.S", "VIMAL.V.S", "RAHUL.P", "MOHAMAD YUNUS.R", "LATHIKA.S", "DEVIPRIYA.T", "SANTHOSH KANNA.S", "PRIYADHARSHINI.K", "HARIHARAN.S", "YETHEESHWAR.B.R"],
             "2026-02-20": ["HARSHVARDHAN.S", "MOHAMAD SALMANKHAN.N", "DEEPIKASRI.R.K", "PRADHIKSHA.M.P", "DINESH PANDI.R", "YAZHINI.M", "MATTHEW PAULS.A", "GURU VIGNESHWARAN.S", "BRINTHA.J", "GAUTHAM.S", "SRIMATHI.B", "PRINCE VICTOR.A", "MAHALAKSHMI.G", "UMA MAHESWARI.M", "YOGESH.K"],
             "2026-02-21": ["KARTHICK PANDIAN.M", "KABIL VISHWA.TM", "HARI PRASATH.G", "NAVANEETHA KRISHNAN.R", "ALLEN VICTOR.A", "HARSHITHAA SHREE.R", "KARTHIKEYAN.P", "DHARUNYA SHREE.G", "HIBSA FARITH.S.H", "DHAKSHANA.K", "ABISHEK.S", "HARSHINI.S.D", "SHARMILA.J", "HEMA VARSHINI.A", "HARSHINI.S"],
             "2026-02-24": ["BALAJI.N", "NITESH VARMAN.M", "MAHENDRAN.N.P", "HARICHARAN.S.P", "SAKTHI DIVASHKAR.M", "HARISH KARTHICK.R", "PADMASINDUJA.K", "LAKSHMI.L", "BOOPESH.K.V", "SENTHAMILSELVI.M", "KHAN MOHAMAD.S", "SWETHA ROSE.S", "VENKATAPRIYA.S", "YUVASRI.K", "SUJITHA.J.T"],
-            "2026-02-25": ["PRIYADHARSHINI.K", "HARIHARAN.S", "YETHEESHWAR.B.R", "VIMAL.V.S", "RAHUL.P", "MOHAMADYUNUS.R", "ABISHEK MILTON.T", "DIVYESH SANKAR.N.K", "GOKUL.S", "YOGAHARANI.A", "MAGATHI.M", "SHRUTI.K", "LATHIKA.S", "DEVIPRIYA.T", "SANTHOSHKANNA.S"],
+            "2026-02-25": ["PRIYADHARSHINI.K", "HARIHARAN.S", "YETHEESHWAR.B.R", "VIMAL.V.S", "RAHUL.P", "MOHAMAD YUNUS.R", "ABISHEK MILTON.T", "DIVYESH SANKAR.N.K", "GOKUL.S", "YOGAHARANI.A", "MAGATHI.M", "SHRUTI.K", "LATHIKA.S", "DEVIPRIYA.T", "SANTHOSH KANNA.S"],
             "2026-02-26": ["MAHALAKSHMI.G", "UMA MAHESWARI.M", "YOGESH.K", "MATTHEW PAULS.A", "GURU VIGNESHWARAN.S", "BRINTHA.J", "PRADHIKSHA.M.P", "DINESH PANDI.R", "YAZHINI.M", "GAUTHAM.S", "SRIMATHI.B", "PRINCE VICTOR.A", "HARSHVARDHAN.S", "MOHAMAD SALMANKHAN.N", "DEEPIKASRI.R.K"],
             "2026-02-27": ["SHARMILA.J", "HEMA VARSHINI.A", "HARSHINI.S", "DHAKSHANA.K", "ABISHEK.S", "HARSHINI.S.D", "KARTHIKEYAN.P", "DHARUNYA SHREE.G", "HIBSA FARITH.S.H", "NAVANEETHA KRISHNAN.R", "ALLEN VICTOR.A", "HARSHITHAA SHREE.R", "KARTHICK PANDIAN.M", "KABIL VISHWA.TM", "HARI PRASATH.G"]
         };
@@ -591,17 +591,17 @@ export const supabaseService = {
             { date: '2026-04-03', reason: 'Good Friday' },
             { date: '2026-04-04', reason: 'Holiday' },
             { date: '2026-04-05', reason: 'Sunday' },
-            { date: '2026-04-06', reason: 'Panguni Pongal' },
-            { date: '2026-04-07', reason: 'Panguni Pongal' },
-            { date: '2026-04-11', reason: "Sustainathon' 26" },
+            { date: '2026-04-06', reason: 'Pongal Festival' },
+            { date: '2026-04-07', reason: 'Pongal Festival' },
+            { date: '2026-04-11', reason: 'Sustainathon' },
             { date: '2026-04-12', reason: 'Sunday' },
             { date: '2026-04-14', reason: 'Tamil New Year' },
             { date: '2026-04-18', reason: 'Ethnic Day' },
             { date: '2026-04-19', reason: 'Sunday' },
             { date: '2026-04-25', reason: 'Seminar Day' },
             { date: '2026-04-26', reason: 'Sunday' },
-            { date: '2026-04-27', reason: 'End Semester Feedback' },
-            { date: '2026-04-30', reason: 'Model Practical Examination' },
+            { date: '2026-04-27', reason: 'Feedback Day' },
+            { date: '2026-04-30', reason: 'Model Practical' }
         ];
 
         const icebreakerEntries = [
