@@ -280,7 +280,7 @@ export const supabaseService = {
     },
 
     async generateSchedule(startDate: string) {
-        const { data: members } = await supabase.from('members').select('id').order('attendance_order');
+        const { data: members } = await supabase.from('members').select('*').order('attendance_order');
         if (!members || members.length === 0) throw new Error("No members found");
 
         const { data: holidaysData } = await supabase.from('holidays').select('date');
@@ -306,6 +306,24 @@ export const supabaseService = {
             [5, 4, 2, 1, 3]  // Step 4: (Final rotation in cycle)
         ];
 
+        const febHardcoded: Record<string, string[]> = {
+            "2026-02-11": ["NAVANEETHA KRISHNAN.R", "ALLEN VICTOR.A", "HARSHITHAA SHREE.R", "KARTHICK PANDIAN.M", "KABIL VISHWA.TM", "HARI PRASATH.G", "SHARMILA.J", "HEMA VARSHINI.A", "HARSHINI.S", "KARTHIKEYAN.P", "DHARUNYA SHREE.G", "HIBSA FARITH.S.H", "DHAKSHANA.K", "ABISHEK.S", "HARSHINI.S.D"],
+            "2026-02-12": ["HARICHARAN.S.P", "SAKTHI DIVASHKAR.M", "HARISH KARTHICK.R", "BALAJI.N", "NITESH VARMAN.M", "MAHENDRAN.N.P", "VENKATAPRIYA.S", "YUVASRI.K", "SUJITHA.J.T", "PADMASINDUJA.K", "LAKSHMI.L", "BOOPESH.K.V", "SENTHAMILSELVI.M", "KHAN MOHAMAD.S", "SWETHA ROSE.S"],
+            "2026-02-13": ["VIMAL.V.S", "RAHUL.P", "MOHAMADYUNUS.R", "PRIYADHARSHINI.K", "HARIHARAN.S", "YETHEESHWAR.B.R", "LATHIKA.S", "DEVIPRIYA.T", "SANTHOSHKANNA.S", "ABISHEK MILTON.T", "DIVYESH SANKAR.N.K", "GOKUL.S", "YOGAHARANI.A", "MAGATHI.M", "SHRUTI.K"],
+            "2026-02-16": ["MATTHEW PAULS.A", "GURU VIGNESHWARAN.S", "BRINTHA.J", "MAHALAKSHMI.G", "UMA MAHESWARI.M", "YOGESH.K", "GAUTHAM.S", "SRIMATHI.B", "PRINCE VICTOR.A", "PRADHIKSHA.M.P", "DINESH PANDI.R", "YAZHINI.M", "HARSHVARDHAN.S", "MOHAMAD SALMANKHAN.N", "DEEPIKASRI.R.K"],
+            "2026-02-17": ["DHAKSHANA.K", "ABISHEK.S", "HARSHINI.S.D", "KARTHIKEYAN.P", "DHARUNYA SHREE.G", "HIBSA FARITH.S.H", "NAVANEETHA KRISHNAN.R", "ALLEN VICTOR.A", "HARSHITHAA SHREE.R", "SHARMILA.J", "HEMA VARSHINI.A", "HARSHINI.S", "KARTHICK PANDIAN.M", "KABIL VISHWA.TM", "HARI PRASATH.G"],
+            "2026-02-18": ["SENTHAMILSELVI.M", "KHAN MOHAMAD.S", "SWETHA ROSE.S", "PADMASINDUJA.K", "LAKSHMI.L", "BOOPESH.K.V", "HARICHARAN.S.P", "SAKTHI DIVASHKAR.M", "HARISH KARTHICK.R", "VENKATAPRIYA.S", "YUVASRI.K", "SUJITHA.J.T", "BALAJI.N", "NITESH VARMAN.M", "MAHENDRAN.N.P"],
+            "2026-02-19": ["YOGAHARANI.A", "MAGATHI.M", "SHRUTI.K", "ABISHEK MILTON.T", "DIVYESH SANKAR.N.K", "GOKUL.S", "VIMAL.V.S", "RAHUL.P", "MOHAMADYUNUS.R", "LATHIKA.S", "DEVIPRIYA.T", "SANTHOSHKANNA.S", "PRIYADHARSHINI.K", "HARIHARAN.S", "YETHEESHWAR.B.R"],
+            "2026-02-20": ["HARSHVARDHAN.S", "MOHAMAD SALMANKHAN.N", "DEEPIKASRI.R.K", "PRADHIKSHA.M.P", "DINESH PANDI.R", "YAZHINI.M", "MATTHEW PAULS.A", "GURU VIGNESHWARAN.S", "BRINTHA.J", "GAUTHAM.S", "SRIMATHI.B", "PRINCE VICTOR.A", "MAHALAKSHMI.G", "UMA MAHESWARI.M", "YOGESH.K"],
+            "2026-02-21": ["KARTHICK PANDIAN.M", "KABIL VISHWA.TM", "HARI PRASATH.G", "NAVANEETHA KRISHNAN.R", "ALLEN VICTOR.A", "HARSHITHAA SHREE.R", "KARTHIKEYAN.P", "DHARUNYA SHREE.G", "HIBSA FARITH.S.H", "DHAKSHANA.K", "ABISHEK.S", "HARSHINI.S.D", "SHARMILA.J", "HEMA VARSHINI.A", "HARSHINI.S"],
+            "2026-02-24": ["BALAJI.N", "NITESH VARMAN.M", "MAHENDRAN.N.P", "HARICHARAN.S.P", "SAKTHI DIVASHKAR.M", "HARISH KARTHICK.R", "PADMASINDUJA.K", "LAKSHMI.L", "BOOPESH.K.V", "SENTHAMILSELVI.M", "KHAN MOHAMAD.S", "SWETHA ROSE.S", "VENKATAPRIYA.S", "YUVASRI.K", "SUJITHA.J.T"],
+            "2026-02-25": ["PRIYADHARSHINI.K", "HARIHARAN.S", "YETHEESHWAR.B.R", "VIMAL.V.S", "RAHUL.P", "MOHAMADYUNUS.R", "ABISHEK MILTON.T", "DIVYESH SANKAR.N.K", "GOKUL.S", "YOGAHARANI.A", "MAGATHI.M", "SHRUTI.K", "LATHIKA.S", "DEVIPRIYA.T", "SANTHOSHKANNA.S"],
+            "2026-02-26": ["MAHALAKSHMI.G", "UMA MAHESWARI.M", "YOGESH.K", "MATTHEW PAULS.A", "GURU VIGNESHWARAN.S", "BRINTHA.J", "PRADHIKSHA.M.P", "DINESH PANDI.R", "YAZHINI.M", "GAUTHAM.S", "SRIMATHI.B", "PRINCE VICTOR.A", "HARSHVARDHAN.S", "MOHAMAD SALMANKHAN.N", "DEEPIKASRI.R.K"],
+            "2026-02-27": ["SHARMILA.J", "HEMA VARSHINI.A", "HARSHINI.S", "DHAKSHANA.K", "ABISHEK.S", "HARSHINI.S.D", "KARTHIKEYAN.P", "DHARUNYA SHREE.G", "HIBSA FARITH.S.H", "NAVANEETHA KRISHNAN.R", "ALLEN VICTOR.A", "HARSHITHAA SHREE.R", "KARTHICK PANDIAN.M", "KABIL VISHWA.TM", "HARI PRASATH.G"]
+        };
+
+        const flatRolesList = roleGroups.flat();
+
         let currentDate = parseISO(startDate);
         const isStartOfMonth = currentDate.getDate() === 1;
         const daysToGenerate = isStartOfMonth ? 31 : 12;
@@ -327,7 +345,6 @@ export const supabaseService = {
             const { count } = await supabase.from('schedule').select('*', { count: 'exact', head: true }).eq('date', dateStr);
 
             if (count === 0) {
-                // Calculate workingDayCount since baseline
                 let workingDayCount = 0;
                 let tempDate = baselineDate;
                 while (tempDate < currentDate) {
@@ -338,32 +355,49 @@ export const supabaseService = {
                     tempDate = addDays(tempDate, 1);
                 }
 
-                const setIdx = workingDayCount % 4; // 4 sets of 15 members
-                const stepIdx = Math.floor(workingDayCount / 4) % 5; // 5 steps in rotation
-                const mapping = triadRotationMappings[stepIdx];
+                if (febHardcoded[dateStr]) {
+                    const rolePlayerNames = febHardcoded[dateStr];
+                    for (let rIdx = 0; rIdx < 15; rIdx++) {
+                        const name = rolePlayerNames[rIdx];
+                        const member = members.find(m => m.name === name);
+                        if (member) {
+                            newEntries.push({
+                                date: dateStr,
+                                role_id: flatRolesList[rIdx],
+                                original_member_id: member.id,
+                                current_member_id: member.id
+                            });
+                        }
+                    }
+                } else {
+                    const setIdx = workingDayCount % 4; // 4 sets of 15 members
+                    const stepIdx = Math.floor(workingDayCount / 4) % 5; // 5 steps in rotation
+                    const mapping = triadRotationMappings[stepIdx];
 
-                // Role Players (15 members)
-                for (let tIdx = 0; tIdx < 5; tIdx++) {
-                    const triadId = tIdx + 1;
-                    const destinationGroupIdx = mapping[tIdx] - 1;
-                    const triadMembers = [
-                        members[setIdx * 15 + tIdx * 3],
-                        members[setIdx * 15 + tIdx * 3 + 1],
-                        members[setIdx * 15 + tIdx * 3 + 2]
-                    ];
+                    // Role Players (15 members)
+                    for (let tIdx = 0; tIdx < 5; tIdx++) {
+                        const triadId = tIdx + 1;
+                        const destinationGroupIdx = mapping[tIdx] - 1;
+                        const triadMembers = [
+                            members[setIdx * 15 + tIdx * 3],
+                            members[setIdx * 15 + tIdx * 3 + 1],
+                            members[setIdx * 15 + tIdx * 3 + 2]
+                        ];
 
-                    for (let rIdx = 0; rIdx < 3; rIdx++) {
-                        newEntries.push({
-                            date: dateStr,
-                            role_id: roleGroups[destinationGroupIdx][rIdx],
-                            original_member_id: triadMembers[rIdx].id,
-                            current_member_id: triadMembers[rIdx].id
-                        });
+                        for (let rIdx = 0; rIdx < 3; rIdx++) {
+                            newEntries.push({
+                                date: dateStr,
+                                role_id: roleGroups[destinationGroupIdx][rIdx],
+                                original_member_id: triadMembers[rIdx].id,
+                                current_member_id: triadMembers[rIdx].id
+                            });
+                        }
                     }
                 }
 
                 // Backups (3 members - Triad 1 of the NEXT set)
-                const nextSetIdx = (setIdx + 1) % 4;
+                const setIdxForBackup = workingDayCount % 4;
+                const nextSetIdx = (setIdxForBackup + 1) % 4;
                 for (let bIdx = 0; bIdx < 3; bIdx++) {
                     const backupMember = members[nextSetIdx * 15 + bIdx];
                     newEntries.push({
@@ -468,7 +502,7 @@ export const supabaseService = {
             { rollNo: "25UEC014", name: "SHARMILA.J" },
             { rollNo: "25UEC016", name: "HEMA VARSHINI.A" },
             { rollNo: "25UEC018", name: "HARSHINI.S" },
-            { rollNo: "25UEC020", name: "KARTIKEYAN.P" },
+            { rollNo: "25UEC020", name: "KARTHIKEYAN.P" },
             { rollNo: "25UEC022", name: "DHARUNYA SHREE.G" },
             { rollNo: "25UEC023", name: "HIBSA FARITH.S.H" },
             { rollNo: "25UEC024", name: "DHAKSHANA.K" },
