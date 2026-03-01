@@ -421,5 +421,10 @@ export const supabaseService = {
         }
 
         await supabase.from('schedule_history').delete().eq('id', lastHistory.id);
+    },
+
+    async deleteAllSchedule() {
+        const { error } = await supabase.from('schedule').delete().neq('id', 0);
+        if (error) throw error;
     }
 };

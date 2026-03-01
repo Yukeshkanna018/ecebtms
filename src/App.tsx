@@ -229,6 +229,21 @@ export default function App() {
     }
   };
 
+  const resetAllSchedule = async () => {
+    if (!window.confirm("ARE YOU SURE? This will DELETE the ENTIRE schedule and all its data!")) return;
+    setLoading(true);
+    try {
+      await supabaseService.deleteAllSchedule();
+      await fetchData();
+      alert("All schedule data has been cleared.");
+    } catch (error) {
+      console.error('Error resetting schedule:', error);
+      alert("Failed to reset schedule. Check console.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const markAbsent = async (scheduleId: number) => {
     try {
       await supabaseService.markAbsent(scheduleId);
@@ -1645,6 +1660,16 @@ export default function App() {
                     >
                       <CalendarIcon className="w-4 h-4" />
                       Generate April 2026
+                    </button>
+                    <button
+                      onClick={resetAllSchedule}
+                      className={cn(
+                        "flex items-center justify-center gap-3 p-6 rounded-3xl border border-red-500/20 text-red-500 transition-all text-sm font-bold uppercase tracking-widest",
+                        isDarkMode ? "hover:bg-red-500/10" : "hover:bg-red-500/5"
+                      )}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      Reset Everything
                     </button>
                     {hasUndo && (
                       <button
