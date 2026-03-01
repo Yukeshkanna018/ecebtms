@@ -1,5 +1,5 @@
 import { supabase } from './supabaseClient';
-import { format, parseISO, addDays, isWeekend } from 'date-fns';
+import { format, parseISO, addDays, isWeekend, endOfMonth } from 'date-fns';
 
 export const supabaseService = {
     async getMembers() {
@@ -270,9 +270,12 @@ export const supabaseService = {
     },
 
     async deleteMonthSchedule(month: string, year: string) {
-        const monthStr = month.padStart(2, '0');
-        const start = `${year}-${monthStr}-01`;
-        const end = `${year}-${monthStr}-31`; // Rough end, Supabase will handle correctly
+        const monthNum = parseInt(month);
+        const yearNum = parseInt(year);
+        // Create a date for the first of the month
+        const baseDate = new Date(yearNum, monthNum - 1, 1);
+        const start = format(baseDate, 'yyyy-MM-01');
+        const end = format(endOfMonth(baseDate), 'yyyy-MM-dd');
 
         await supabase.from('schedule').delete().gte('date', start).lte('date', end).eq('status', 'scheduled');
         await supabase.from('daily_icebreaker').delete().gte('date', start).lte('date', end);
