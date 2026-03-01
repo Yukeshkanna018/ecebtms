@@ -1,0 +1,5 @@
+{
+  "name": "ECE_B Toastmasters Scheduler",
+  "description": "A comprehensive scheduling system for ECE_B Toastmasters Club with automated role assignment, absentee management, and fair return rules.",
+  "requestFramePermissions": []
+}
