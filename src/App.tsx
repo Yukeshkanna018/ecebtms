@@ -760,6 +760,16 @@ export default function App() {
 
         {activeTab === 'schedule' && (
           <>
+            {/* TEMPORARY DEBUG BOX - will remove after fixing */}
+            <div style={{ background: '#fef3c7', border: '2px solid #f59e0b', borderRadius: '12px', padding: '16px', marginBottom: '16px', fontFamily: 'monospace', fontSize: '12px' }}>
+              <strong>🔍 DEBUG INFO (temp):</strong><br />
+              Themes loaded: {themes.length} | Icebreakers loaded: {icebreakers.length}<br />
+              Selected date: {selectedDate}<br />
+              Theme for this date: "{getThemeForDate(selectedDate) || 'NONE'}"<br />
+              Icebreaker for this date: "{getIcebreakerForDate(selectedDate) || 'NONE'}"<br />
+              All themes: {JSON.stringify(themes)}<br />
+              All icebreakers: {JSON.stringify(icebreakers)}
+            </div>
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
               <div className="flex items-center gap-2 md:gap-4 bg-white rounded-3xl p-1.5 md:p-2 shadow-sm border border-black/5 overflow-x-auto no-scrollbar">
                 <button
