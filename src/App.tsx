@@ -815,15 +815,16 @@ export default function App() {
                 <div className="flex flex-wrap justify-center gap-3">
                   {backupMembers.map((m, i) => {
                     const isEditing = editingEntryId === m.id;
+                    const isBusy = m.status === 'absent';
                     return (
                       <div key={i} className={cn(
-                        "px-4 py-2 rounded-2xl border flex flex-col items-center min-w-[120px] relative group",
+                        "px-4 py-3 rounded-2xl border flex flex-col items-center min-w-[140px] relative group transition-all",
                         isDarkMode ? "bg-black/20 border-white/5" : "bg-[#F5F5F0] border-black/5",
                         isEditing && "ring-2 ring-[#5A5A40]",
-                        m.status === 'absent' && "opacity-50 grayscale-[0.5]"
+                        isBusy && "opacity-60"
                       )}>
-                        {isAdminLoggedIn ? (
-                          isEditing ? (
+                        <div className="flex flex-col items-center gap-1 w-full">
+                          {isEditing ? (
                             <div className="flex flex-col gap-2 w-full">
                               <select
                                 value={tempMemberId || m.currentMemberId}
@@ -838,72 +839,43 @@ export default function App() {
                                 ))}
                               </select>
                               <div className="flex gap-1">
-                                <button
-                                  onClick={() => updateSchedule(m.id, tempMemberId || m.currentMemberId)}
-                                  className="flex-1 bg-[#5A5A40] text-white py-1 rounded-lg text-[8px] font-bold"
-                                >
-                                  Save
-                                </button>
-                                <button
-                                  onClick={() => { setEditingEntryId(null); setTempMemberId(null); }}
-                                  className="flex-1 bg-black/5 py-1 rounded-lg text-[8px] font-bold"
-                                >
-                                  Cancel
-                                </button>
+                                <button onClick={() => updateSchedule(m.id, tempMemberId || m.currentMemberId)} className="flex-1 bg-[#5A5A40] text-white py-1 rounded-lg text-[8px] font-bold">Save</button>
+                                <button onClick={() => { setEditingEntryId(null); setTempMemberId(null); }} className="flex-1 bg-black/5 py-1 rounded-lg text-[8px] font-bold">Cancel</button>
                               </div>
                             </div>
                           ) : (
-                            <div className="flex flex-col items-center gap-1">
-                              <button
-                                onClick={() => { setEditingEntryId(m.id); setTempMemberId(m.currentMemberId); }}
-                                className="flex flex-col items-center hover:opacity-70 transition-opacity"
-                                title="Edit Backup Member"
-                              >
+                            <>
+                              <div className="flex flex-col items-center">
                                 <span className="text-xs font-serif font-medium">{m.name}</span>
                                 <span className="text-[8px] font-mono opacity-40">{m.rollNo}</span>
-                              </button>
-                              {isAdminLoggedIn ? (
-                                m.status === 'absent' ? (
+                              </div>
+
+                              <div className={cn(
+                                "text-[7px] uppercase tracking-widest font-bold px-1.5 py-0.5 rounded-full mt-1",
+                                isBusy ? "bg-amber-500/10 text-amber-600" : "bg-emerald-500/10 text-emerald-600"
+                              )}>
+                                {isBusy ? 'Substituting' : 'Available'}
+                              </div>
+
+                              {isAdminLoggedIn && (
+                                <div className="mt-2 flex gap-1">
                                   <button
-                                    onClick={() => markPresent(m.id)}
-                                    disabled={isPast}
-                                    className={cn(
-                                      "text-[8px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full transition-all",
-                                      isPast
-                                        ? "bg-gray-500/10 text-gray-400 cursor-not-allowed"
-                                        : "bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20"
-                                    )}
+                                    onClick={() => { setEditingEntryId(m.id); setTempMemberId(m.currentMemberId); }}
+                                    className="p-1 rounded-lg hover:bg-black/5 text-[#5A5A40]"
+                                    title="Edit Backup"
                                   >
-                                    Mark Present
+                                    <Users className="w-3 h-3" />
                                   </button>
-                                ) : (
-                                  <button
-                                    onClick={() => markAbsent(m.id)}
-                                    disabled={isPast}
-                                    className={cn(
-                                      "text-[8px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full transition-all",
-                                      isPast
-                                        ? "bg-gray-500/10 text-gray-400 cursor-not-allowed"
-                                        : "bg-red-500/10 text-red-500 hover:bg-red-500/20"
-                                    )}
-                                  >
-                                    Mark Absent
-                                  </button>
-                                )
-                              ) : (
-                                <>
-                                  <span className="text-xs font-serif font-medium">{m.name}</span>
-                                  <span className="text-[8px] font-mono opacity-40">{m.rollNo}</span>
-                                </>
+                                  {isBusy ? (
+                                    <button onClick={() => markPresent(m.id)} className="text-[7px] font-bold text-emerald-600 uppercase">Release</button>
+                                  ) : (
+                                    <button onClick={() => markAbsent(m.id)} className="text-[7px] font-bold text-red-500 uppercase">Absent</button>
+                                  )}
+                                </div>
                               )}
-                            </div>
-                          )
-                        ) : (
-                          <>
-                            <span className="text-xs font-serif font-medium">{m.name}</span>
-                            <span className="text-[8px] font-mono opacity-40">{m.rollNo}</span>
-                          </>
-                        )}
+                            </>
+                          )}
+                        </div>
                       </div>
                     );
                   })}

@@ -58,4 +58,7 @@ export const ROLES: Role[] = [
   { id: 'TT_SPEAKER_1', name: 'TT Speaker 1', description: 'Participates in Table Topics.' },
   { id: 'TT_SPEAKER_2', name: 'TT Speaker 2', description: 'Participates in Table Topics.' },
   { id: 'TT_SPEAKER_3', name: 'TT Speaker 3', description: 'Participates in Table Topics.' },
+  { id: 'BACKUP_1', name: 'Backup 1', description: 'Available to fill in for absent role players.' },
+  { id: 'BACKUP_2', name: 'Backup 2', description: 'Available to fill in for absent role players.' },
+  { id: 'BACKUP_3', name: 'Backup 3', description: 'Available to fill in for absent role players.' },
 ];

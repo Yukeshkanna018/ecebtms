@@ -319,49 +319,29 @@ export const supabaseService = {
             if (isStartOfMonth && currentDate.getMonth() !== targetMonth) break;
 
             const dateStr = format(currentDate, "yyyy-MM-dd");
-
             const { count } = await supabase.from('schedule').select('*', { count: 'exact', head: true }).eq('date', dateStr);
 
             if (count === 0) {
-                const batchIdx = dayCount % 4;
-                const cycleIdx = Math.floor(dayCount / 4);
-
-                const setPerms = [
-                    [0, 1, 2, 3, 4],
-                    [4, 3, 0, 2, 1],
-                    [1, 0, 3, 4, 2],
-                    [2, 4, 1, 0, 3],
-                    [3, 2, 4, 1, 0]
-                ];
-
-                const currentPerm = setPerms[cycleIdx % 5];
-                const batchMembers = members.slice(batchIdx * 15, (batchIdx + 1) * 15);
-
-                if (batchMembers.length < 15) {
-                    rolesList.forEach((roleId, rIdx) => {
-                        const member = members[(dayCount * 15 + rIdx) % members.length];
-                        newEntries.push({ date: dateStr, role_id: roleId, original_member_id: member.id, current_member_id: member.id });
+                // Pick 15 role players starting from the next person in rotation
+                for (let rIdx = 0; rIdx < 15; rIdx++) {
+                    const member = members[(dayCount * 15 + rIdx) % members.length];
+                    newEntries.push({
+                        date: dateStr,
+                        role_id: rolesList[rIdx],
+                        original_member_id: member.id,
+                        current_member_id: member.id
                     });
-                } else {
-                    const roleGroups = [
-                        [0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11], [12, 13, 14]
-                    ];
+                }
 
-                    roleGroups.forEach((roleIndices, setIdx) => {
-                        const memberSetIdx = currentPerm[setIdx];
-                        roleIndices.forEach((roleIdx, i) => {
-                            const member = batchMembers[memberSetIdx * 3 + i];
-                            newEntries.push({ date: dateStr, role_id: rolesList[roleIdx], original_member_id: member.id, current_member_id: member.id });
-                        });
+                // Pick 3 backups (next in line after the 15 role players)
+                for (let bIdx = 0; bIdx < 3; bIdx++) {
+                    const backupMember = members[(dayCount * 15 + 15 + bIdx) % members.length];
+                    newEntries.push({
+                        date: dateStr,
+                        role_id: `BACKUP_${bIdx + 1}`,
+                        original_member_id: backupMember.id,
+                        current_member_id: backupMember.id
                     });
-
-                    // Backups
-                    const nextBatchIdx = (batchIdx + 1) % 4;
-                    const nextBatchMembers = members.slice(nextBatchIdx * 15, (nextBatchIdx + 1) * 15);
-                    for (let i = 0; i < 3; i++) {
-                        const backupMember = nextBatchMembers[i];
-                        newEntries.push({ date: dateStr, role_id: rolesList[15 + i], original_member_id: backupMember.id, current_member_id: backupMember.id });
-                    }
                 }
                 dayCount++;
             }
