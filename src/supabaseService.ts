@@ -93,27 +93,35 @@ export const supabaseService = {
 
     async getThemes(): Promise<{ date: string; theme: string }[]> {
         const { data, error } = await supabase.from('daily_theme').select('*');
+        console.log('[DEBUG] daily_theme data:', data, 'error:', error);
         if (error) throw error;
         return (data || []).map(t => ({ date: t.date.split('T')[0], theme: t.theme }));
     },
 
     async getIcebreakers(): Promise<{ date: string; game_name: string }[]> {
         const { data, error } = await supabase.from('daily_icebreaker').select('*');
+        console.log('[DEBUG] daily_icebreaker data:', data, 'error:', error);
         if (error) throw error;
         return (data || []).map(i => ({ date: i.date.split('T')[0], game_name: i.game_name }));
     },
 
     async updateTheme(date: string, theme: string) {
-        const { error } = await supabase
+        console.log('[DEBUG] updateTheme called with:', date, theme);
+        const { data, error } = await supabase
             .from('daily_theme')
-            .upsert({ date, theme });
+            .upsert({ date, theme }, { onConflict: 'date' })
+            .select();
+        console.log('[DEBUG] updateTheme result:', data, 'error:', error);
         if (error) throw error;
     },
 
     async updateIcebreaker(date: string, gameName: string) {
-        const { error } = await supabase
+        console.log('[DEBUG] updateIcebreaker called with:', date, gameName);
+        const { data, error } = await supabase
             .from('daily_icebreaker')
-            .upsert({ date, game_name: gameName });
+            .upsert({ date, game_name: gameName }, { onConflict: 'date' })
+            .select();
+        console.log('[DEBUG] updateIcebreaker result:', data, 'error:', error);
         if (error) throw error;
     },
 
