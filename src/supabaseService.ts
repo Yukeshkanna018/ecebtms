@@ -359,7 +359,7 @@ export const supabaseService = {
                     const rolePlayerNames = febHardcoded[dateStr];
                     for (let rIdx = 0; rIdx < 15; rIdx++) {
                         const name = rolePlayerNames[rIdx];
-                        const member = members.find(m => m.name === name);
+                        const member = members.find(m => m.name.trim().toLowerCase() === name.trim().toLowerCase());
                         if (member) {
                             newEntries.push({
                                 date: dateStr,
@@ -563,6 +563,11 @@ export const supabaseService = {
         }));
 
         const holidayEntries = [
+            { date: '2026-02-14', reason: 'Weekend' },
+            { date: '2026-02-15', reason: 'Weekend' },
+            { date: '2026-02-22', reason: 'Weekend' },
+            { date: '2026-02-23', reason: 'Holiday' },
+            { date: '2026-02-28', reason: 'Weekend' },
             { date: '2026-03-01', reason: 'Sunday' },
             { date: '2026-03-07', reason: 'Annual Day' },
             { date: '2026-03-08', reason: 'Hostel Day' },

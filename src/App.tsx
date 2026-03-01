@@ -1686,6 +1686,33 @@ export default function App() {
                       Reset Everything
                     </button>
                     <button
+                      onClick={async () => {
+                        if (confirm("This will RESET and REGENERATE everything from Feb to April. Proceed?")) {
+                          try {
+                            setLoading(true);
+                            await supabaseService.deleteAllSchedule();
+                            await supabaseService.syncMembers();
+                            await supabaseService.generateSchedule("2026-02-11");
+                            await supabaseService.generateSchedule("2026-03-01");
+                            await supabaseService.generateSchedule("2026-04-01");
+                            alert("Master Setup Complete! Feb, March, and April are scheduled.");
+                            window.location.reload();
+                          } catch (err) {
+                            alert("Master Setup Failed.");
+                            console.error(err);
+                          } finally {
+                            setLoading(false);
+                          }
+                        }
+                      }}
+                      className={cn(
+                        "flex items-center justify-center gap-3 p-6 rounded-3xl border border-purple-500/20 text-purple-600 transition-all text-sm font-bold uppercase tracking-widest bg-purple-50",
+                        isDarkMode ? "hover:bg-purple-900/20" : "hover:bg-purple-100"
+                      )}
+                    >
+                      🚀 RUN MASTER SETUP
+                    </button>
+                    <button
                       onClick={syncMembers}
                       className={cn(
                         "flex items-center justify-center gap-3 p-6 rounded-3xl border border-[#5A5A40]/20 text-[#5A5A40] transition-all text-sm font-bold uppercase tracking-widest",
