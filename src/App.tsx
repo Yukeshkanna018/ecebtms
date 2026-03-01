@@ -466,7 +466,7 @@ export default function App() {
     );
   }
 
-  const currentDayRoles = (groupedSchedule[selectedDate] || []).filter(entry => !entry.roleId.startsWith('BACKUP_'));
+  const currentDayRoles = (groupedSchedule[selectedDate] || []).filter(entry => !entry.roleId.startsWith('BACKUP_') && entry.roleId !== 'META');
 
   return (
     <div className={cn(

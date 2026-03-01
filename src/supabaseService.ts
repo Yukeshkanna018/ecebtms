@@ -19,44 +19,72 @@ export const supabaseService = {
     },
 
     async getSchedule() {
-        const { data, error } = await supabase
-            .from('schedule')
-            .select(`
-        *,
-        originalMember:members!original_member_id(name),
-        currentMember:members!current_member_id(name),
-        replacedByMember:members!replaced_by_id(name)
-      `)
-            .order('date')
-            .order('id');
-
-        if (error) throw error;
-
-        // Get icebreakers and themes
-        const [{ data: icebreakers }, { data: themes }] = await Promise.all([
+        // Fetch all data
+        const [
+            { data: scheduleData, error: schedError },
+            { data: icebreakers, error: iceError },
+            { data: themes, error: themeError }
+        ] = await Promise.all([
+            supabase.from('schedule').select(`
+                *,
+                originalMember:members!original_member_id(name),
+                currentMember:members!current_member_id(name),
+                replacedByMember:members!replaced_by_id(name)
+            `).order('date'),
             supabase.from('daily_icebreaker').select('*'),
             supabase.from('daily_theme').select('*')
         ]);
 
-        // Map the results and sort them by the predefined ROLES order
-        return data.map(s => {
-            const dateStr = typeof s.date === 'string' ? s.date.split('T')[0] : s.date;
-            return {
-                id: s.id,
-                date: s.date,
-                roleId: s.role_id,
-                originalMemberId: s.original_member_id,
-                currentMemberId: s.current_member_id,
-                status: s.status,
-                isSubstitution: s.is_substitution,
-                replacedById: s.replaced_by_id,
-                originalMemberName: s.originalMember?.name,
-                currentMemberName: s.currentMember?.name,
-                replacedByName: s.replacedByMember?.name,
-                icebreaker: icebreakers?.find(i => i.date === dateStr)?.game_name,
-                theme: themes?.find(t => t.date === dateStr)?.theme
-            };
-        }).sort((a, b) => {
+        if (schedError) throw schedError;
+        if (iceError) throw iceError;
+        if (themeError) throw themeError;
+
+        // Get all unique dates from all three sources
+        const allDates = new Set<string>();
+        scheduleData?.forEach(s => allDates.add(typeof s.date === 'string' ? s.date.split('T')[0] : s.date));
+        icebreakers?.forEach(i => allDates.add(typeof i.date === 'string' ? i.date.split('T')[0] : i.date));
+        themes?.forEach(t => allDates.add(typeof t.date === 'string' ? t.date.split('T')[0] : t.date));
+
+        const result: any[] = [];
+
+        allDates.forEach(dateStr => {
+            const rolesForDate = scheduleData?.filter(s => (typeof s.date === 'string' ? s.date.split('T')[0] : s.date) === dateStr) || [];
+            const ice = icebreakers?.find(i => (typeof i.date === 'string' ? i.date.split('T')[0] : i.date) === dateStr);
+            const th = themes?.find(t => (typeof t.date === 'string' ? t.date.split('T')[0] : t.date) === dateStr);
+
+            if (rolesForDate.length > 0) {
+                rolesForDate.forEach(s => {
+                    result.push({
+                        id: s.id,
+                        date: s.date,
+                        roleId: s.role_id,
+                        originalMemberId: s.original_member_id,
+                        currentMemberId: s.current_member_id,
+                        status: s.status,
+                        isSubstitution: s.is_substitution,
+                        replacedById: s.replaced_by_id,
+                        originalMemberName: s.originalMember?.name,
+                        currentMemberName: s.currentMember?.name,
+                        replacedByName: s.replacedByMember?.name,
+                        icebreaker: ice?.game_name,
+                        theme: th?.theme
+                    });
+                });
+            } else {
+                // Add a "meta" entry for dates with theme/icebreaker but no roles
+                result.push({
+                    id: -1, // Dummy ID
+                    date: dateStr,
+                    roleId: 'META',
+                    theme: th?.theme,
+                    icebreaker: ice?.game_name
+                });
+            }
+        });
+
+        // Sort by date, then by role order
+        return result.sort((a, b) => {
+            if (a.date !== b.date) return a.date.localeCompare(b.date);
             const indexA = ROLES.findIndex(r => r.id === a.roleId);
             const indexB = ROLES.findIndex(r => r.id === b.roleId);
             return (indexA === -1 ? 99 : indexA) - (indexB === -1 ? 99 : indexB);
