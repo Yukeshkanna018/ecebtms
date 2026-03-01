@@ -97,9 +97,22 @@ export default function App() {
   const dates = Object.keys(groupedSchedule).sort();
 
   useEffect(() => {
-    if (dates.length > 0 && !dates.includes(icebreakerForm.date)) {
-      setIcebreakerForm(prev => ({ ...prev, date: dates[0] }));
-      setThemeForm(prev => ({ ...prev, date: dates[0] }));
+    if (dates.length > 0) {
+      // Find today's date string
+      const todayStr = format(startOfToday(), 'yyyy-MM-dd');
+
+      // Find the first date in the schedule that is TODAY or in the FUTURE
+      const closestDate = dates.find(d => d >= todayStr);
+
+      // If found, and the user hasn't manually picked a date yet, select it
+      if (closestDate) {
+        setSelectedDate(closestDate);
+      }
+
+      if (!dates.includes(icebreakerForm.date)) {
+        setIcebreakerForm(prev => ({ ...prev, date: closestDate || dates[0] }));
+        setThemeForm(prev => ({ ...prev, date: closestDate || dates[0] }));
+      }
     }
   }, [dates]);
 
