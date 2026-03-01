@@ -469,8 +469,8 @@ export const supabaseService = {
             { rollNo: "25UEC068", name: "LATHIKA.S" },
             { rollNo: "25UEC069", name: "DEVIPRIYA.T" },
             { rollNo: "25UEC074", name: "SANTHOSHKANNA.S" },
-            { rollNo: "25UEC075", name: "ABISHEK MILTON.T" },
-            { rollNo: "25UEC076", name: "DIVYESH SANKAR.N.K" },
+            { rollNo: "25UEC075", "name": "ABISHEK MILTON.T" },
+            { rollNo: "25UEC076", "name": "DIVYESH SANKAR.N.K" },
             { rollNo: "25UEC082", "name": "GOKUL.S" },
             { rollNo: "25UEC083", "name": "YOGAHARANI.A" },
             { rollNo: "25UEC085", "name": "MAGATHI.M" },
@@ -492,14 +492,64 @@ export const supabaseService = {
             { rollNo: "25UEC120", "name": "DEEPIKASRI.R.K" },
         ];
 
-        const entries = membersList.map((m, i) => ({
+        const memberEntries = membersList.map((m, i) => ({
             roll_no: m.rollNo,
             name: m.name,
             attendance_order: i + 1,
             photo_url: `https://picsum.photos/seed/${m.rollNo}/200/200`
         }));
 
-        const { error } = await supabase.from('members').upsert(entries, { onConflict: 'roll_no' });
-        if (error) throw error;
+        const holidayEntries = [
+            { date: '2026-03-01', reason: 'Sunday' },
+            { date: '2026-03-07', reason: 'Annual Day' },
+            { date: '2026-03-08', reason: 'Hostel Day' },
+            { date: '2026-03-12', reason: 'Cycle Test I' },
+            { date: '2026-03-13', reason: 'Cycle Test I' },
+            { date: '2026-03-14', reason: 'Cycle Test I' },
+            { date: '2026-03-15', reason: 'Sunday' },
+            { date: '2026-03-16', reason: 'Cycle Test I' },
+            { date: '2026-03-17', reason: 'Cycle Test I' },
+            { date: '2026-03-18', reason: 'Cycle Test I' },
+            { date: '2026-03-19', reason: 'Telugu New Year' },
+            { date: '2026-03-20', reason: 'Additional Holiday' },
+            { date: '2026-03-21', reason: 'Ramzan' },
+            { date: '2026-03-22', reason: 'Sunday' },
+            { date: '2026-03-28', reason: "Funtura' 26" },
+            { date: '2026-03-29', reason: 'Sunday' },
+            { date: '2026-04-02', reason: 'Parent Teachers Meeting' },
+            { date: '2026-04-03', reason: 'Good Friday' },
+            { date: '2026-04-04', reason: 'Holiday' },
+            { date: '2026-04-05', reason: 'Sunday' },
+            { date: '2026-04-06', reason: 'Panguni Pongal' },
+            { date: '2026-04-07', reason: 'Panguni Pongal' },
+            { date: '2026-04-11', reason: "Sustainathon' 26" },
+            { date: '2026-04-12', reason: 'Sunday' },
+            { date: '2026-04-14', reason: 'Tamil New Year' },
+            { date: '2026-04-18', reason: 'Ethnic Day' },
+            { date: '2026-04-19', reason: 'Sunday' },
+            { date: '2026-04-25', reason: 'Seminar Day' },
+            { date: '2026-04-26', reason: 'Sunday' },
+            { date: '2026-04-27', reason: 'End Semester Feedback' },
+            { date: '2026-04-30', reason: 'Model Practical Examination' },
+        ];
+
+        const icebreakerEntries = [
+            { name: 'Electric Pulse', description: 'A high-energy reaction game.' },
+            { name: 'Guess the Name', description: 'Identify the member from clues.' },
+            { name: 'Get the Signature', description: 'Networking and social bingo.' },
+            { name: 'Enact the Word', description: 'Charades-style communication game.' },
+        ];
+
+        const announcementEntries = [
+            { title: 'Welcome to ECE_B Toastmasters', content: 'We are excited to launch our new digital platform.', date: '2026-02-28', type: 'info' }
+        ];
+
+        // Perform upserts to avoid duplication
+        await Promise.all([
+            supabase.from('members').upsert(memberEntries, { onConflict: 'roll_no' }),
+            supabase.from('holidays').upsert(holidayEntries, { onConflict: 'date' }),
+            supabase.from('icebreaker_bank').upsert(icebreakerEntries, { onConflict: 'name' }),
+            supabase.from('announcements').upsert(announcementEntries, { onConflict: 'title' }) // Upserting by title as a crude unique key
+        ]);
     }
 };
