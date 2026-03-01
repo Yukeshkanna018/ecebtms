@@ -98,18 +98,48 @@ export default function App() {
 
   useEffect(() => {
     if (dates.length > 0) {
-      // If we don't have a selected date, or the current one is no longer in the list,
-      // land on the first available date of the schedule (e.g., Feb 11 or Mar 2)
+      // Land on the closest upcoming date, or the first available if none in future
+      const todayStr = format(startOfToday(), 'yyyy-MM-dd');
+      const closest = dates.find(d => d >= todayStr) || dates[0];
+
       if (!selectedDate || !dates.includes(selectedDate)) {
-        setSelectedDate(dates[0]);
+        setSelectedDate(closest);
       }
 
       if (!dates.includes(icebreakerForm.date)) {
-        setIcebreakerForm(prev => ({ ...prev, date: dates[0] }));
-        setThemeForm(prev => ({ ...prev, date: dates[0] }));
+        setIcebreakerForm(prev => ({ ...prev, date: closest }));
+        setThemeForm(prev => ({ ...prev, date: closest }));
       }
     }
   }, [dates]);
+
+  const nextMeetingDate = useMemo(() => {
+    if (dates.length === 0) return null;
+    const todayStr = format(startOfToday(), 'yyyy-MM-dd');
+    return dates.find(d => d >= todayStr) || dates[0];
+  }, [dates]);
+
+  // Reset to today/next meeting when switching to the schedule tab
+  useEffect(() => {
+    if (activeTab === 'schedule' && nextMeetingDate) {
+      setSelectedDate(nextMeetingDate);
+    }
+  }, [activeTab, nextMeetingDate]);
+
+  // Auto-populate theme and icebreaker forms when date changes
+  useEffect(() => {
+    if (themeForm.date && groupedSchedule[themeForm.date]) {
+      const existing = groupedSchedule[themeForm.date][0]?.theme || '';
+      setThemeForm(prev => (prev.theme !== existing ? { ...prev, theme: existing } : prev));
+    }
+  }, [themeForm.date]);
+
+  useEffect(() => {
+    if (icebreakerForm.date && groupedSchedule[icebreakerForm.date]) {
+      const existing = groupedSchedule[icebreakerForm.date][0]?.icebreaker || '';
+      setIcebreakerForm(prev => (prev.gameName !== existing ? { ...prev, gameName: existing } : prev));
+    }
+  }, [icebreakerForm.date]);
 
   const [isGenerating, setIsGenerating] = useState(false);
 
@@ -317,7 +347,6 @@ export default function App() {
     try {
       await supabaseService.updateIcebreaker(icebreakerForm.date, icebreakerForm.gameName);
       await fetchData();
-      setIcebreakerForm(prev => ({ ...prev, gameName: '' }));
       setIcebreakerSuccess(true);
       setTimeout(() => setIcebreakerSuccess(false), 3000);
     } catch (error) {
@@ -333,7 +362,6 @@ export default function App() {
     try {
       await supabaseService.updateTheme(themeForm.date, themeForm.theme);
       await fetchData();
-      setThemeForm(prev => ({ ...prev, theme: '' }));
       setThemeSuccess(true);
       setTimeout(() => setThemeSuccess(false), 3000);
     } catch (error) {
@@ -578,7 +606,7 @@ export default function App() {
               </div>
             </section>
 
-            {groupedSchedule[format(startOfToday(), 'yyyy-MM-dd')]?.[0]?.icebreaker && (
+            {nextMeetingDate && groupedSchedule[nextMeetingDate]?.[0]?.icebreaker && (
               <motion.div
                 initial={{ opacity: 0, y: 30 }}
                 whileInView={{ opacity: 1, y: 0 }}
@@ -595,10 +623,12 @@ export default function App() {
                   <div className="space-y-4 text-center md:text-left">
                     <div className="flex items-center justify-center md:justify-start gap-3">
                       <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                      <h4 className={cn("text-xs uppercase tracking-[0.4em] font-bold", isDarkMode ? "text-white/40" : "text-[#5A5A40]")}>Today's Icebreaker</h4>
+                      <h4 className={cn("text-xs uppercase tracking-[0.4em] font-bold", isDarkMode ? "text-white/40" : "text-[#5A5A40]")}>
+                        {nextMeetingDate === format(startOfToday(), 'yyyy-MM-dd') ? "Today's Icebreaker" : `Icebreaker: ${format(parseISO(nextMeetingDate), 'MMM d')}`}
+                      </h4>
                     </div>
                     <h3 className={cn("text-5xl md:text-7xl font-serif font-medium italic leading-tight", isDarkMode ? "text-white" : "text-black")}>
-                      "{groupedSchedule[format(startOfToday(), 'yyyy-MM-dd')][0].icebreaker}"
+                      "{groupedSchedule[nextMeetingDate][0].icebreaker}"
                     </h3>
                     <p className={cn("text-base md:text-lg opacity-40 font-serif italic", isDarkMode ? "text-white" : "text-black")}>
                       Join us for the first 10 minutes to break the ice and build connections.
@@ -615,7 +645,7 @@ export default function App() {
               </motion.div>
             )}
 
-            {groupedSchedule[format(startOfToday(), 'yyyy-MM-dd')]?.[0]?.theme && (
+            {nextMeetingDate && groupedSchedule[nextMeetingDate]?.[0]?.theme && (
               <motion.div
                 initial={{ opacity: 0, y: 30 }}
                 whileInView={{ opacity: 1, y: 0 }}
@@ -632,10 +662,12 @@ export default function App() {
                   <div className="space-y-4 text-center md:text-left">
                     <div className="flex items-center justify-center md:justify-start gap-3">
                       <div className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
-                      <h4 className={cn("text-xs uppercase tracking-[0.4em] font-bold", isDarkMode ? "text-white/40" : "text-[#5A5A40]")}>Today's Theme</h4>
+                      <h4 className={cn("text-xs uppercase tracking-[0.4em] font-bold", isDarkMode ? "text-white/40" : "text-[#5A5A40]")}>
+                        {nextMeetingDate === format(startOfToday(), 'yyyy-MM-dd') ? "Today's Theme" : `Theme: ${format(parseISO(nextMeetingDate), 'MMM d')}`}
+                      </h4>
                     </div>
                     <h3 className={cn("text-5xl md:text-7xl font-serif font-medium italic leading-tight", isDarkMode ? "text-white" : "text-black")}>
-                      "{groupedSchedule[format(startOfToday(), 'yyyy-MM-dd')][0].theme}"
+                      "{groupedSchedule[nextMeetingDate][0].theme}"
                     </h3>
                     <p className={cn("text-base md:text-lg opacity-40 font-serif italic", isDarkMode ? "text-white" : "text-black")}>
                       The central topic for our prepared speakers today.
@@ -758,17 +790,6 @@ export default function App() {
                   )}
                 >
                   Table
-                </button>
-                <button
-                  onClick={() => {
-                    const todayStr = format(startOfToday(), 'yyyy-MM-dd');
-                    const closest = dates.find(d => d >= todayStr);
-                    if (closest) setSelectedDate(closest);
-                  }}
-                  className="px-4 py-2 rounded-2xl text-[10px] md:text-xs font-bold text-[#5A5A40]/60 hover:text-[#5A5A40] transition-all flex items-center gap-2"
-                >
-                  <Clock className="w-3 h-3" />
-                  Today
                 </button>
               </div>
 

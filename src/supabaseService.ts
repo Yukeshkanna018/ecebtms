@@ -39,21 +39,24 @@ export const supabaseService = {
         ]);
 
         // Map the results and sort them by the predefined ROLES order
-        return data.map(s => ({
-            id: s.id,
-            date: s.date,
-            roleId: s.role_id,
-            originalMemberId: s.original_member_id,
-            currentMemberId: s.current_member_id,
-            status: s.status,
-            isSubstitution: s.is_substitution,
-            replacedById: s.replaced_by_id,
-            originalMemberName: s.originalMember?.name,
-            currentMemberName: s.currentMember?.name,
-            replacedByName: s.replacedByMember?.name,
-            icebreaker: icebreakers?.find(i => i.date === s.date)?.game_name,
-            theme: themes?.find(t => t.date === s.date)?.theme
-        })).sort((a, b) => {
+        return data.map(s => {
+            const dateStr = typeof s.date === 'string' ? s.date.split('T')[0] : s.date;
+            return {
+                id: s.id,
+                date: s.date,
+                roleId: s.role_id,
+                originalMemberId: s.original_member_id,
+                currentMemberId: s.current_member_id,
+                status: s.status,
+                isSubstitution: s.is_substitution,
+                replacedById: s.replaced_by_id,
+                originalMemberName: s.originalMember?.name,
+                currentMemberName: s.currentMember?.name,
+                replacedByName: s.replacedByMember?.name,
+                icebreaker: icebreakers?.find(i => i.date === dateStr)?.game_name,
+                theme: themes?.find(t => t.date === dateStr)?.theme
+            };
+        }).sort((a, b) => {
             const indexA = ROLES.findIndex(r => r.id === a.roleId);
             const indexB = ROLES.findIndex(r => r.id === b.roleId);
             return (indexA === -1 ? 99 : indexA) - (indexB === -1 ? 99 : indexB);
