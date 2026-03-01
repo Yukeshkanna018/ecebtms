@@ -280,51 +280,58 @@ export const supabaseService = {
     },
 
     async generateSchedule(startDate: string) {
-        // This is the most complex one. We'll need to port logic.
-        // However, it involves a lot of DB reads/writes.
-        // For now, let's keep it in the frontend or move it here.
         const { data: members } = await supabase.from('members').select('id').order('attendance_order');
         if (!members || members.length === 0) throw new Error("No members found");
 
         const { data: holidaysData } = await supabase.from('holidays').select('date');
         const holidays = holidaysData?.map(h => h.date) || [];
 
-        const { data: existingDays } = await supabase.from('schedule').select('date', { count: 'exact', head: false });
-        const uniqueDates = Array.from(new Set(existingDays?.map(d => d.date))).sort();
-        let dayCount = uniqueDates.length;
+        // Reference start date for rotation (Day 0)
+        const baselineDate = parseISO('2026-02-11');
+
+        const rolesList = [
+            "TMOD", "GE", "TTM", "TIMER", "GRAMMARIAN", "AH_COUNTER",
+            "SPEAKER_1", "SPEAKER_2", "SPEAKER_3",
+            "EVALUATOR_1", "EVALUATOR_2", "EVALUATOR_3",
+            "TT_SPEAKER_1", "TT_SPEAKER_2", "TT_SPEAKER_3"
+        ];
 
         let currentDate = parseISO(startDate);
         const isStartOfMonth = currentDate.getDate() === 1;
         const daysToGenerate = isStartOfMonth ? 31 : 12;
         const targetMonth = currentDate.getMonth();
 
-        const rolesList = [
-            "TMOD", "GE", "TTM", "TIMER", "AH_COUNTER", "GRAMMARIAN",
-            "SPEAKER_1", "SPEAKER_2", "SPEAKER_3",
-            "EVALUATOR_1", "EVALUATOR_2", "EVALUATOR_3",
-            "TT_SPEAKER_1", "TT_SPEAKER_2", "TT_SPEAKER_3",
-            "BACKUP_1", "BACKUP_2", "BACKUP_3"
-        ];
-
         const newEntries = [];
 
         for (let i = 0; i < daysToGenerate; i++) {
             if (isStartOfMonth && currentDate.getMonth() !== targetMonth) break;
 
-            while (isWeekend(currentDate) || holidays.includes(format(currentDate, "yyyy-MM-dd"))) {
+            const dateStr = format(currentDate, "yyyy-MM-dd");
+            const isSunday = currentDate.getDay() === 0;
+
+            // Skip Sunday and Holidays
+            if (isSunday || holidays.includes(dateStr)) {
                 currentDate = addDays(currentDate, 1);
-                if (isStartOfMonth && currentDate.getMonth() !== targetMonth) break;
+                continue;
             }
 
-            if (isStartOfMonth && currentDate.getMonth() !== targetMonth) break;
-
-            const dateStr = format(currentDate, "yyyy-MM-dd");
             const { count } = await supabase.from('schedule').select('*', { count: 'exact', head: true }).eq('date', dateStr);
 
             if (count === 0) {
-                // Pick 15 role players starting from the next person in rotation
+                // Calculate correct dayCount (number of active meeting days since baseline)
+                let workingDayCount = 0;
+                let tempDate = baselineDate;
+                while (tempDate < currentDate) {
+                    const tempDateStr = format(tempDate, "yyyy-MM-dd");
+                    if (tempDate.getDay() !== 0 && !holidays.includes(tempDateStr)) {
+                        workingDayCount++;
+                    }
+                    tempDate = addDays(tempDate, 1);
+                }
+
+                // Pick 15 role players
                 for (let rIdx = 0; rIdx < 15; rIdx++) {
-                    const member = members[(dayCount * 15 + rIdx) % members.length];
+                    const member = members[(workingDayCount * 15 + rIdx) % members.length];
                     newEntries.push({
                         date: dateStr,
                         role_id: rolesList[rIdx],
@@ -333,9 +340,9 @@ export const supabaseService = {
                     });
                 }
 
-                // Pick 3 backups (next in line after the 15 role players)
+                // Pick 3 backups
                 for (let bIdx = 0; bIdx < 3; bIdx++) {
-                    const backupMember = members[(dayCount * 15 + 15 + bIdx) % members.length];
+                    const backupMember = members[(workingDayCount * 15 + 15 + bIdx) % members.length];
                     newEntries.push({
                         date: dateStr,
                         role_id: `BACKUP_${bIdx + 1}`,
@@ -343,7 +350,6 @@ export const supabaseService = {
                         current_member_id: backupMember.id
                     });
                 }
-                dayCount++;
             }
             currentDate = addDays(currentDate, 1);
         }
