@@ -286,14 +286,24 @@ export const supabaseService = {
         const { data: holidaysData } = await supabase.from('holidays').select('date');
         const holidays = holidaysData?.map(h => h.date) || [];
 
-        // Reference start date for rotation (Day 0)
         const baselineDate = parseISO('2026-02-11');
 
-        const rolesList = [
-            "TMOD", "GE", "TTM", "TIMER", "GRAMMARIAN", "AH_COUNTER",
-            "SPEAKER_1", "SPEAKER_2", "SPEAKER_3",
-            "EVALUATOR_1", "EVALUATOR_2", "EVALUATOR_3",
-            "TT_SPEAKER_1", "TT_SPEAKER_2", "TT_SPEAKER_3"
+        // Roles grouped by Triad (3 roles per group)
+        const roleGroups = [
+            ["TMOD", "GE", "TTM"],
+            ["TIMER", "AH_COUNTER", "GRAMMARIAN"],
+            ["SPEAKER_1", "SPEAKER_2", "SPEAKER_3"],
+            ["EVALUATOR_1", "EVALUATOR_2", "EVALUATOR_3"],
+            ["TT_SPEAKER_1", "TT_SPEAKER_2", "TT_SPEAKER_3"]
+        ];
+
+        // The rotation mapping derived from the February spreadsheet images
+        const triadRotationMappings = [
+            [1, 2, 3, 4, 5], // Step 0: Triad 1->Group 1, T2->G2, etc. (Feb 11, 12, 13, 16)
+            [3, 5, 4, 2, 1], // Step 1: Triad 1->Group 3, T2->G5, T3->G4, T4->G2, T5->G1 (Feb 17, 18, 19, 20)
+            [2, 1, 5, 3, 4], // Step 2: (Feb 21, 24, 25, 26)
+            [4, 3, 1, 5, 2], // Step 3: (Next rotation)
+            [5, 4, 2, 1, 3]  // Step 4: (Final rotation in cycle)
         ];
 
         let currentDate = parseISO(startDate);
@@ -309,7 +319,6 @@ export const supabaseService = {
             const dateStr = format(currentDate, "yyyy-MM-dd");
             const isSunday = currentDate.getDay() === 0;
 
-            // Skip Sunday and Holidays
             if (isSunday || holidays.includes(dateStr)) {
                 currentDate = addDays(currentDate, 1);
                 continue;
@@ -318,7 +327,7 @@ export const supabaseService = {
             const { count } = await supabase.from('schedule').select('*', { count: 'exact', head: true }).eq('date', dateStr);
 
             if (count === 0) {
-                // Calculate correct dayCount (number of active meeting days since baseline)
+                // Calculate workingDayCount since baseline
                 let workingDayCount = 0;
                 let tempDate = baselineDate;
                 while (tempDate < currentDate) {
@@ -329,20 +338,34 @@ export const supabaseService = {
                     tempDate = addDays(tempDate, 1);
                 }
 
-                // Pick 15 role players
-                for (let rIdx = 0; rIdx < 15; rIdx++) {
-                    const member = members[(workingDayCount * 15 + rIdx) % members.length];
-                    newEntries.push({
-                        date: dateStr,
-                        role_id: rolesList[rIdx],
-                        original_member_id: member.id,
-                        current_member_id: member.id
-                    });
+                const setIdx = workingDayCount % 4; // 4 sets of 15 members
+                const stepIdx = Math.floor(workingDayCount / 4) % 5; // 5 steps in rotation
+                const mapping = triadRotationMappings[stepIdx];
+
+                // Role Players (15 members)
+                for (let tIdx = 0; tIdx < 5; tIdx++) {
+                    const triadId = tIdx + 1;
+                    const destinationGroupIdx = mapping[tIdx] - 1;
+                    const triadMembers = [
+                        members[setIdx * 15 + tIdx * 3],
+                        members[setIdx * 15 + tIdx * 3 + 1],
+                        members[setIdx * 15 + tIdx * 3 + 2]
+                    ];
+
+                    for (let rIdx = 0; rIdx < 3; rIdx++) {
+                        newEntries.push({
+                            date: dateStr,
+                            role_id: roleGroups[destinationGroupIdx][rIdx],
+                            original_member_id: triadMembers[rIdx].id,
+                            current_member_id: triadMembers[rIdx].id
+                        });
+                    }
                 }
 
-                // Pick 3 backups
+                // Backups (3 members - Triad 1 of the NEXT set)
+                const nextSetIdx = (setIdx + 1) % 4;
                 for (let bIdx = 0; bIdx < 3; bIdx++) {
-                    const backupMember = members[(workingDayCount * 15 + 15 + bIdx) % members.length];
+                    const backupMember = members[nextSetIdx * 15 + bIdx];
                     newEntries.push({
                         date: dateStr,
                         role_id: `BACKUP_${bIdx + 1}`,
