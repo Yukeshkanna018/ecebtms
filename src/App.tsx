@@ -381,7 +381,7 @@ export default function App() {
 
   const handleLogin = (e: FormEvent) => {
     e.preventDefault();
-    if (password === 'admin123') {
+    if (password === 'ecebtms@123321') {
       setIsAdminLoggedIn(true);
       setLoginError(false);
       setPassword('');
