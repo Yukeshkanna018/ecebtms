@@ -739,72 +739,64 @@ export default function App() {
 
         {activeTab === 'schedule' && (
           <>
-            <div className="flex flex-col gap-8 mb-12">
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-                <div className="flex items-center gap-2 md:gap-4 bg-white rounded-3xl p-1.5 md:p-2 shadow-sm border border-black/5 overflow-x-auto no-scrollbar">
-                  <button
-                    onClick={() => setScheduleView('cards')}
-                    className={cn(
-                      "px-4 md:px-6 py-2 rounded-2xl text-[10px] md:text-xs font-bold transition-all whitespace-nowrap",
-                      scheduleView === 'cards' ? "bg-[#5A5A40] text-white" : "text-[#5A5A40]/40 hover:text-[#5A5A40]"
-                    )}
-                  >
-                    Cards View
-                  </button>
-                  <button
-                    onClick={() => setScheduleView('table')}
-                    className={cn(
-                      "px-4 md:px-6 py-2 rounded-2xl text-[10px] md:text-xs font-bold transition-all whitespace-nowrap",
-                      scheduleView === 'table' ? "bg-[#5A5A40] text-white" : "text-[#5A5A40]/40 hover:text-[#5A5A40]"
-                    )}
-                  >
-                    Table View
-                  </button>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => {
-                      const todayStr = format(startOfToday(), 'yyyy-MM-dd');
-                      const closest = dates.find(d => d >= todayStr);
-                      if (closest) setSelectedDate(closest);
-                    }}
-                    className="px-4 py-2 rounded-2xl text-[10px] md:text-xs font-bold bg-[#F5F5F0] text-[#5A5A40] border border-black/5 hover:bg-[#5A5A40]/10 transition-all flex items-center gap-2"
-                  >
-                    <Clock className="w-3 h-3" />
-                    Go to Today
-                  </button>
-                </div>
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12">
+              <div className="flex items-center gap-2 md:gap-4 bg-white rounded-3xl p-1.5 md:p-2 shadow-sm border border-black/5 overflow-x-auto no-scrollbar">
+                <button
+                  onClick={() => setScheduleView('cards')}
+                  className={cn(
+                    "px-4 md:px-6 py-2 rounded-2xl text-[10px] md:text-xs font-bold transition-all whitespace-nowrap",
+                    scheduleView === 'cards' ? "bg-[#5A5A40] text-white" : "text-[#5A5A40]/40 hover:text-[#5A5A40]"
+                  )}
+                >
+                  Cards
+                </button>
+                <button
+                  onClick={() => setScheduleView('table')}
+                  className={cn(
+                    "px-4 md:px-6 py-2 rounded-2xl text-[10px] md:text-xs font-bold transition-all whitespace-nowrap",
+                    scheduleView === 'table' ? "bg-[#5A5A40] text-white" : "text-[#5A5A40]/40 hover:text-[#5A5A40]"
+                  )}
+                >
+                  Table
+                </button>
+                <button
+                  onClick={() => {
+                    const todayStr = format(startOfToday(), 'yyyy-MM-dd');
+                    const closest = dates.find(d => d >= todayStr);
+                    if (closest) setSelectedDate(closest);
+                  }}
+                  className="px-4 py-2 rounded-2xl text-[10px] md:text-xs font-bold text-[#5A5A40]/60 hover:text-[#5A5A40] transition-all flex items-center gap-2"
+                >
+                  <Clock className="w-3 h-3" />
+                  Today
+                </button>
               </div>
 
-              {/* Horizontal Date Picker */}
-              <div className="bg-white/40 backdrop-blur-sm rounded-[32px] p-2 border border-black/5 overflow-x-auto no-scrollbar flex items-center gap-2">
-                {dates.map((date) => {
-                  const isActive = date === selectedDate;
-                  const isTodayDate = date === format(startOfToday(), 'yyyy-MM-dd');
-                  return (
-                    <button
-                      key={date}
-                      onClick={() => setSelectedDate(date)}
-                      className={cn(
-                        "flex flex-col items-center min-w-[70px] md:min-w-[90px] py-3 rounded-2xl transition-all border",
-                        isActive
-                          ? "bg-[#5A5A40] text-white border-[#5A5A40] shadow-md scale-105 z-10"
-                          : "bg-white/80 text-[#5A5A40]/60 border-black/5 hover:bg-white hover:text-[#5A5A40]"
-                      )}
-                    >
-                      <span className="text-[8px] uppercase tracking-widest font-bold mb-1 opacity-60">
-                        {format(parseISO(date), 'EEE')}
-                      </span>
-                      <span className="text-xs md:text-sm font-serif font-medium">
-                        {format(parseISO(date), 'MMM d')}
-                      </span>
-                      {isTodayDate && (
-                        <div className={cn("w-1 h-1 rounded-full mt-1", isActive ? "bg-white" : "bg-emerald-500")} />
-                      )}
-                    </button>
-                  );
-                })}
+              <div className="flex items-center justify-between md:justify-start gap-4 bg-white rounded-3xl p-1.5 md:p-2 shadow-sm border border-black/5">
+                <button
+                  onClick={prevDate}
+                  disabled={currentDateIndex <= 0}
+                  className="p-2 rounded-xl hover:bg-[#F5F5F0] disabled:opacity-30 transition-all"
+                >
+                  <ChevronLeft className="w-5 h-5" />
+                </button>
+
+                <div className="px-2 md:px-4 text-center min-w-[120px] md:min-w-[160px]">
+                  <p className="text-[8px] uppercase tracking-[0.2em] font-bold text-[#5A5A40]">
+                    {format(parseISO(selectedDate), 'EEEE')}
+                  </p>
+                  <h2 className="text-xs md:text-sm font-serif font-medium">
+                    {format(parseISO(selectedDate), 'MMM d, yyyy')}
+                  </h2>
+                </div>
+
+                <button
+                  onClick={nextDate}
+                  disabled={currentDateIndex >= dates.length - 1}
+                  className="p-2 rounded-xl hover:bg-[#F5F5F0] disabled:opacity-30 transition-all"
+                >
+                  <ChevronRight className="w-5 h-5" />
+                </button>
               </div>
             </div>
 
