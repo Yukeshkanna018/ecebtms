@@ -1,5 +1,6 @@
 import { supabase } from './supabaseClient';
 import { format, parseISO, addDays, isWeekend, endOfMonth } from 'date-fns';
+import { ROLES } from './types';
 
 export const supabaseService = {
     async getMembers() {
@@ -37,7 +38,7 @@ export const supabaseService = {
             supabase.from('daily_theme').select('*')
         ]);
 
-        // Map the results to match the expected structure
+        // Map the results and sort them by the predefined ROLES order
         return data.map(s => ({
             id: s.id,
             date: s.date,
@@ -52,7 +53,11 @@ export const supabaseService = {
             replacedByName: s.replacedByMember?.name,
             icebreaker: icebreakers?.find(i => i.date === s.date)?.game_name,
             theme: themes?.find(t => t.date === s.date)?.theme
-        }));
+        })).sort((a, b) => {
+            const indexA = ROLES.findIndex(r => r.id === a.roleId);
+            const indexB = ROLES.findIndex(r => r.id === b.roleId);
+            return (indexA === -1 ? 99 : indexA) - (indexB === -1 ? 99 : indexB);
+        });
     },
 
     async updateTheme(date: string, theme: string) {
