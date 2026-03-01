@@ -426,5 +426,80 @@ export const supabaseService = {
     async deleteAllSchedule() {
         const { error } = await supabase.from('schedule').delete().neq('id', 0);
         if (error) throw error;
+    },
+
+    async syncMembers() {
+        const membersList = [
+            { rollNo: "25UEC002", name: "NAVANEETHA KRISHNAN.R" },
+            { rollNo: "25UEC004", name: "ALLEN VICTOR.A" },
+            { rollNo: "25UEC006", name: "HARSHITHAA SHREE.R" },
+            { rollNo: "25UEC008", name: "KARTHICK PANDIAN.M" },
+            { rollNo: "25UEC010", name: "KABIL VISHWA.TM" },
+            { rollNo: "25UEC012", name: "HARI PRASATH.G" },
+            { rollNo: "25UEC014", name: "SHARMILA.J" },
+            { rollNo: "25UEC016", name: "HEMA VARSHINI.A" },
+            { rollNo: "25UEC018", name: "HARSHINI.S" },
+            { rollNo: "25UEC020", name: "KARTIKEYAN.P" },
+            { rollNo: "25UEC022", name: "DHARUNYA SHREE.G" },
+            { rollNo: "25UEC023", name: "HIBSA FARITH.S.H" },
+            { rollNo: "25UEC024", name: "DHAKSHANA.K" },
+            { rollNo: "25UEC026", name: "ABISHEK.S" },
+            { rollNo: "25UEC028", name: "HARSHINI.S.D" },
+            { rollNo: "25UEC030", name: "HARICHARAN.S.P" },
+            { rollNo: "25UEC032", name: "SAKTHI DIVASHKAR.M" },
+            { rollNo: "25UEC036", name: "HARISH KARTHICK.R" },
+            { rollNo: "25UEC038", name: "BALAJI.N" },
+            { rollNo: "25UEC040", name: "NITESH VARMAN.M" },
+            { rollNo: "25UEC042", name: "MAHENDRAN.N.P" },
+            { rollNo: "25UEC044", name: "VENKATAPRIYA.S" },
+            { rollNo: "25UEC046", name: "YUVASRI.K" },
+            { rollNo: "25UEC048", name: "SUJITHA.J.T" },
+            { rollNo: "25UEC050", name: "PADMASINDUJA.K" },
+            { rollNo: "25UEC051", name: "LAKSHMI.L" },
+            { rollNo: "25UEC052", name: "BOOPESH.K.V" },
+            { rollNo: "25UEC054", name: "SENTHAMILSELVI.M" },
+            { rollNo: "25UEC056", name: "KHAN MOHAMAD.S" },
+            { rollNo: "25UEC057", name: "SWETHA ROSE.S" },
+            { rollNo: "25UEC058", name: "VIMAL.V.S" },
+            { rollNo: "25UEC059", name: "RAHUL.P" },
+            { rollNo: "25UEC062", name: "MOHAMADYUNUS.R" },
+            { rollNo: "25UEC064", name: "PRIYADHARSHINI.K" },
+            { rollNo: "25UEC066", name: "HARIHARAN.S" },
+            { rollNo: "25UEC067", name: "YETHEESHWAR.B.R" },
+            { rollNo: "25UEC068", name: "LATHIKA.S" },
+            { rollNo: "25UEC069", name: "DEVIPRIYA.T" },
+            { rollNo: "25UEC074", name: "SANTHOSHKANNA.S" },
+            { rollNo: "25UEC075", name: "ABISHEK MILTON.T" },
+            { rollNo: "25UEC076", name: "DIVYESH SANKAR.N.K" },
+            { rollNo: "25UEC082", "name": "GOKUL.S" },
+            { rollNo: "25UEC083", "name": "YOGAHARANI.A" },
+            { rollNo: "25UEC085", "name": "MAGATHI.M" },
+            { rollNo: "25UEC086", "name": "SHRUTI.K" },
+            { rollNo: "25UEC089", "name": "MATTHEW PAULS.A" },
+            { rollNo: "25UEC092", "name": "GURU VIGNESHWARAN.S" },
+            { rollNo: "25UEC096", "name": "BRINTHA.J" },
+            { rollNo: "25UEC102", "name": "MAHALAKSHMI.G" },
+            { rollNo: "25UEC103", "name": "UMA MAHESWARI.M" },
+            { rollNo: "25UEC107", "name": "YOGESH.K" },
+            { rollNo: "25UEC108", "name": "GAUTHAM.S" },
+            { rollNo: "25UEC109", "name": "SRIMATHI.B" },
+            { rollNo: "25UEC110", "name": "PRINCE VICTOR.A" },
+            { rollNo: "25UEC111", "name": "PRADHIKSHA.M.P" },
+            { rollNo: "25UEC113", "name": "DINESH PANDI.R" },
+            { rollNo: "25UEC115", "name": "YAZHINI.M" },
+            { rollNo: "25UEC116", "name": "HARSHVARDHAN.S" },
+            { rollNo: "25UEC117", "name": "MOHAMAD SALMANKHAN.N" },
+            { rollNo: "25UEC120", "name": "DEEPIKASRI.R.K" },
+        ];
+
+        const entries = membersList.map((m, i) => ({
+            roll_no: m.rollNo,
+            name: m.name,
+            attendance_order: i + 1,
+            photo_url: `https://picsum.photos/seed/${m.rollNo}/200/200`
+        }));
+
+        const { error } = await supabase.from('members').upsert(entries, { onConflict: 'roll_no' });
+        if (error) throw error;
     }
 };

@@ -244,6 +244,20 @@ export default function App() {
     }
   };
 
+  const syncMembers = async () => {
+    setLoading(true);
+    try {
+      await supabaseService.syncMembers();
+      await fetchData();
+      alert("Member list has been synchronized with the club database (60 members).");
+    } catch (error) {
+      console.error('Error syncing members:', error);
+      alert("Failed to sync members. Check console.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const markAbsent = async (scheduleId: number) => {
     try {
       await supabaseService.markAbsent(scheduleId);
@@ -1670,6 +1684,16 @@ export default function App() {
                     >
                       <Trash2 className="w-4 h-4" />
                       Reset Everything
+                    </button>
+                    <button
+                      onClick={syncMembers}
+                      className={cn(
+                        "flex items-center justify-center gap-3 p-6 rounded-3xl border border-[#5A5A40]/20 text-[#5A5A40] transition-all text-sm font-bold uppercase tracking-widest",
+                        isDarkMode ? "hover:bg-white/5" : "hover:bg-[#5A5A40]/5"
+                      )}
+                    >
+                      <Users className="w-4 h-4" />
+                      Repair Members List
                     </button>
                     {hasUndo && (
                       <button
