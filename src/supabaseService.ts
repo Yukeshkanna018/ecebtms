@@ -91,6 +91,18 @@ export const supabaseService = {
         });
     },
 
+    async getThemes(): Promise<{ date: string; theme: string }[]> {
+        const { data, error } = await supabase.from('daily_theme').select('*');
+        if (error) throw error;
+        return (data || []).map(t => ({ date: t.date.split('T')[0], theme: t.theme }));
+    },
+
+    async getIcebreakers(): Promise<{ date: string; game_name: string }[]> {
+        const { data, error } = await supabase.from('daily_icebreaker').select('*');
+        if (error) throw error;
+        return (data || []).map(i => ({ date: i.date.split('T')[0], game_name: i.game_name }));
+    },
+
     async updateTheme(date: string, theme: string) {
         const { error } = await supabase
             .from('daily_theme')

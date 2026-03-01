@@ -35,6 +35,8 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<'home' | 'schedule' | 'members' | 'framework' | 'contact' | 'icebreaker' | 'admin'>('home');
   const isDarkMode = false;
   const [schedule, setSchedule] = useState<ScheduleEntry[]>([]);
+  const [themes, setThemes] = useState<{ date: string; theme: string }[]>([]);
+  const [icebreakers, setIcebreakers] = useState<{ date: string; game_name: string }[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
   const [announcements, setAnnouncements] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -182,9 +184,11 @@ export default function App() {
 
   const fetchData = async () => {
     try {
-      const [schedData, memData] = await Promise.all([
+      const [schedData, memData, themeData, iceData] = await Promise.all([
         supabaseService.getSchedule(),
-        supabaseService.getMembers()
+        supabaseService.getMembers(),
+        supabaseService.getThemes(),
+        supabaseService.getIcebreakers()
       ]);
 
       if (Array.isArray(schedData)) {
@@ -204,11 +208,24 @@ export default function App() {
         console.error('Members data is not an array:', memData);
         setMembers([]);
       }
+
+      if (Array.isArray(themeData)) setThemes(themeData);
+      if (Array.isArray(iceData)) setIcebreakers(iceData);
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {
       setLoading(false);
     }
+  };
+
+  // Helper: get theme for a date string (YYYY-MM-DD)
+  const getThemeForDate = (dateStr: string) => {
+    return themes.find(t => t.date.split('T')[0] === dateStr)?.theme || null;
+  };
+
+  // Helper: get icebreaker for a date string (YYYY-MM-DD)
+  const getIcebreakerForDate = (dateStr: string) => {
+    return icebreakers.find(i => i.date.split('T')[0] === dateStr)?.game_name || null;
   };
 
   const fetchAnnouncements = async () => {
@@ -346,7 +363,9 @@ export default function App() {
     setIcebreakerSubmitting(true);
     try {
       await supabaseService.updateIcebreaker(icebreakerForm.date, icebreakerForm.gameName);
-      await fetchData();
+      // Refresh only icebreakers for immediate display
+      const freshIce = await supabaseService.getIcebreakers();
+      if (Array.isArray(freshIce)) setIcebreakers(freshIce);
       setIcebreakerSuccess(true);
       setTimeout(() => setIcebreakerSuccess(false), 3000);
     } catch (error) {
@@ -361,7 +380,9 @@ export default function App() {
     setThemeSubmitting(true);
     try {
       await supabaseService.updateTheme(themeForm.date, themeForm.theme);
-      await fetchData();
+      // Refresh only themes for immediate display
+      const freshThemes = await supabaseService.getThemes();
+      if (Array.isArray(freshThemes)) setThemes(freshThemes);
       setThemeSuccess(true);
       setTimeout(() => setThemeSuccess(false), 3000);
     } catch (error) {
@@ -640,7 +661,7 @@ export default function App() {
                     )}
                   </div>
 
-                  {nextMeetingDate && groupedSchedule[nextMeetingDate]?.[0]?.icebreaker && (
+                  {nextMeetingDate && getIcebreakerForDate(nextMeetingDate) && (
                     <motion.div
                       initial={{ opacity: 0, scale: 0.95 }}
                       whileInView={{ opacity: 1, scale: 1 }}
@@ -662,7 +683,7 @@ export default function App() {
                             </h4>
                           </div>
                           <h3 className={cn("text-3xl md:text-4xl font-serif font-medium italic", isDarkMode ? "text-white" : "text-black")}>
-                            "{groupedSchedule[nextMeetingDate][0].icebreaker}"
+                            "{getIcebreakerForDate(nextMeetingDate!)}"
                           </h3>
                           <p className={cn("text-xs opacity-40 font-serif italic max-w-sm", isDarkMode ? "text-white" : "text-black")}>
                             Join us for our daily icebreaker to kick off the session and connect with fellow members.
@@ -789,47 +810,51 @@ export default function App() {
               </div>
             </div>
 
-            {groupedSchedule[selectedDate]?.[0]?.theme && (
-              <motion.div
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className={cn(
-                  "mb-8 p-4 md:p-6 rounded-[32px] border flex flex-col items-center justify-center text-center relative overflow-hidden group",
-                  isDarkMode ? "bg-white/5 border-white/10" : "bg-[#5A5A40] border-black/5 shadow-lg"
-                )}
-              >
-                <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
-                <span className={cn("text-[8px] uppercase tracking-[0.3em] font-bold mb-1", isDarkMode ? "text-white/40" : "text-white/60")}>Meeting Theme</span>
-                <h3 className={cn("text-xl md:text-2xl font-serif italic font-medium", isDarkMode ? "text-white" : "text-white")}>
-                  "{groupedSchedule[selectedDate][0].theme}"
-                </h3>
-              </motion.div>
-            )}
+            {(() => {
+              const themeForDay = getThemeForDate(selectedDate); return themeForDay && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className={cn(
+                    "mb-8 p-4 md:p-6 rounded-[32px] border flex flex-col items-center justify-center text-center relative overflow-hidden group",
+                    isDarkMode ? "bg-white/5 border-white/10" : "bg-[#5A5A40] border-black/5 shadow-lg"
+                  )}
+                >
+                  <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
+                  <span className={cn("text-[8px] uppercase tracking-[0.3em] font-bold mb-1", isDarkMode ? "text-white/40" : "text-white/60")}>Meeting Theme</span>
+                  <h3 className={cn("text-xl md:text-2xl font-serif italic font-medium", isDarkMode ? "text-white" : "text-white")}>
+                    "{themeForDay}"
+                  </h3>
+                </motion.div>
+              );
+            })()}
 
-            {groupedSchedule[selectedDate]?.[0]?.icebreaker && (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.98 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className={cn(
-                  "mb-8 p-4 md:p-6 rounded-[32px] border relative overflow-hidden group",
-                  isDarkMode ? "bg-white/5 border-white/10" : "bg-white border-black/5 shadow-sm"
-                )}
-              >
-                <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
-                  <MessageSquare className="w-16 h-16" />
-                </div>
-                <div className="relative z-10 flex items-center justify-between gap-4">
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                      <h4 className="text-[8px] uppercase tracking-[0.2em] font-bold text-[#5A5A40]/60">Icebreaker Activity</h4>
-                    </div>
-                    <h3 className="text-lg font-serif font-medium italic">"{groupedSchedule[selectedDate][0].icebreaker}"</h3>
+            {(() => {
+              const iceForDay = getIcebreakerForDate(selectedDate); return iceForDay && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.98 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className={cn(
+                    "mb-8 p-4 md:p-6 rounded-[32px] border relative overflow-hidden group",
+                    isDarkMode ? "bg-white/5 border-white/10" : "bg-white border-black/5 shadow-sm"
+                  )}
+                >
+                  <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+                    <MessageSquare className="w-16 h-16" />
                   </div>
-                  <span className="text-[8px] font-bold uppercase tracking-widest text-[#5A5A40]/40 px-3 py-1 rounded-full bg-black/5">10 Mins Duration</span>
-                </div>
-              </motion.div>
-            )}
+                  <div className="relative z-10 flex items-center justify-between gap-4">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                        <h4 className="text-[8px] uppercase tracking-[0.2em] font-bold text-[#5A5A40]/60">Icebreaker Activity</h4>
+                      </div>
+                      <h3 className="text-lg font-serif font-medium italic">"{iceForDay}"</h3>
+                    </div>
+                    <span className="text-[8px] font-bold uppercase tracking-widest text-[#5A5A40]/40 px-3 py-1 rounded-full bg-black/5">10 Mins Duration</span>
+                  </div>
+                </motion.div>
+              );
+            })()}
 
             {backupMembers.length > 0 && (
               <motion.div
