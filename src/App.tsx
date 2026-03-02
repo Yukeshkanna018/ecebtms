@@ -760,16 +760,6 @@ export default function App() {
 
         {activeTab === 'schedule' && (
           <>
-            {/* TEMPORARY DEBUG BOX - will remove after fixing */}
-            <div style={{ background: '#fef3c7', border: '2px solid #f59e0b', borderRadius: '12px', padding: '16px', marginBottom: '16px', fontFamily: 'monospace', fontSize: '12px' }}>
-              <strong>🔍 DEBUG INFO (temp):</strong><br />
-              Themes loaded: {themes.length} | Icebreakers loaded: {icebreakers.length}<br />
-              Selected date: {selectedDate}<br />
-              Theme for this date: "{getThemeForDate(selectedDate) || 'NONE'}"<br />
-              Icebreaker for this date: "{getIcebreakerForDate(selectedDate) || 'NONE'}"<br />
-              All themes: {JSON.stringify(themes)}<br />
-              All icebreakers: {JSON.stringify(icebreakers)}
-            </div>
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
               <div className="flex items-center gap-2 md:gap-4 bg-white rounded-3xl p-1.5 md:p-2 shadow-sm border border-black/5 overflow-x-auto no-scrollbar">
                 <button
@@ -835,33 +825,6 @@ export default function App() {
                   <h3 className={cn("text-xl md:text-2xl font-serif italic font-medium", isDarkMode ? "text-white" : "text-white")}>
                     "{themeForDay}"
                   </h3>
-                </motion.div>
-              );
-            })()}
-
-            {(() => {
-              const iceForDay = getIcebreakerForDate(selectedDate); return iceForDay && (
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.98 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  className={cn(
-                    "mb-8 p-4 md:p-6 rounded-[32px] border relative overflow-hidden group",
-                    isDarkMode ? "bg-white/5 border-white/10" : "bg-white border-black/5 shadow-sm"
-                  )}
-                >
-                  <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
-                    <MessageSquare className="w-16 h-16" />
-                  </div>
-                  <div className="relative z-10 flex items-center justify-between gap-4">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                        <h4 className="text-[8px] uppercase tracking-[0.2em] font-bold text-[#5A5A40]/60">Icebreaker Activity</h4>
-                      </div>
-                      <h3 className="text-lg font-serif font-medium italic">"{iceForDay}"</h3>
-                    </div>
-                    <span className="text-[8px] font-bold uppercase tracking-widest text-[#5A5A40]/40 px-3 py-1 rounded-full bg-black/5">10 Mins Duration</span>
-                  </div>
                 </motion.div>
               );
             })()}
