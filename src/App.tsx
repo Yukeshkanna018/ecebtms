@@ -76,7 +76,6 @@ export default function App() {
 
   useEffect(() => {
     fetchData();
-    fetchAnnouncements();
     fetchIcebreakerBank();
     if (isAdminLoggedIn) {
       fetchQueries();
@@ -192,31 +191,37 @@ export default function App() {
   };
 
   const fetchData = async (retryCount = 0) => {
+    if (retryCount === 0) setLoading(true);
+
     try {
-      const [schedData, memData, themeData, iceData] = await Promise.all([
+      const [schedData, memData, themeData, iceData, announcementsData] = await Promise.all([
         supabaseService.getSchedule(),
         supabaseService.getMembers(),
         supabaseService.getThemes(),
-        supabaseService.getIcebreakers()
+        supabaseService.getIcebreakers(),
+        supabaseService.getAnnouncements()
       ]);
+
+      // Cold-start detection: if both schedule and members are empty, it's likely a cold start
+      const isColdStart = (Array.isArray(memData) && memData.length === 0) &&
+        (Array.isArray(schedData) && schedData.length === 0);
+
+      if (isColdStart && retryCount < 3) {
+        console.log(`Cold start detected, retrying... (${retryCount + 1}/3)`);
+        setTimeout(() => fetchData(retryCount + 1), 2000);
+        return;
+      }
 
       if (Array.isArray(schedData)) {
         setSchedule(schedData);
-        // Use ref (not state) to prevent stale-closure infinite loop
         if (schedData.length === 0 && !isGeneratingRef.current) {
           isGeneratingRef.current = true;
           setIsGenerating(true);
           await generateSchedule();
-          return; // generateSchedule calls fetchData again when done
+          return;
         }
       } else {
         setSchedule([]);
-      }
-
-      if (Array.isArray(memData) && memData.length === 0 && retryCount < 3) {
-        // Members empty — Supabase may be cold-starting; retry after delay
-        setTimeout(() => fetchData(retryCount + 1), 2000);
-        return;
       }
 
       if (Array.isArray(memData)) {
@@ -225,18 +230,22 @@ export default function App() {
         setMembers([]);
       }
 
+      if (Array.isArray(announcementsData)) {
+        setAnnouncements(announcementsData);
+      }
+
       if (Array.isArray(themeData)) setThemes(themeData);
       if (Array.isArray(iceData)) setIcebreakers(iceData);
+
       setLoadError(false);
+      setLoading(false);
     } catch (error) {
       console.error('Error fetching data:', error);
       if (retryCount < 3) {
-        // Network/Supabase error — retry with backoff
         setTimeout(() => fetchData(retryCount + 1), 2000 * (retryCount + 1));
         return;
       }
       setLoadError(true);
-    } finally {
       setLoading(false);
     }
   };
@@ -251,14 +260,7 @@ export default function App() {
     return icebreakers.find(i => i.date.split('T')[0] === dateStr)?.game_name || null;
   };
 
-  const fetchAnnouncements = async () => {
-    try {
-      const data = await supabaseService.getAnnouncements();
-      setAnnouncements(data || []);
-    } catch (error) {
-      console.error('Error fetching announcements:', error);
-    }
-  };
+
 
   const fetchQueries = async () => {
     try {
@@ -294,17 +296,20 @@ export default function App() {
   };
 
   const generateSchedule = async (startDate?: string) => {
-    setLoading(true);
+    // Only set loading if not already in a loading sequence
+    const wasLoading = loading;
+    if (!wasLoading) setLoading(true);
+
     try {
       const dateToUse = startDate || '2026-02-11';
       await supabaseService.generateSchedule(dateToUse);
       await fetchData();
     } catch (error) {
       console.error('Error generating schedule:', error);
-    } finally {
-      isGeneratingRef.current = false; // always reset ref before state
-      setIsGenerating(false);
       setLoading(false);
+    } finally {
+      isGeneratingRef.current = false;
+      setIsGenerating(false);
     }
   };
 
