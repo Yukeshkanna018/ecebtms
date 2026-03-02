@@ -661,44 +661,7 @@ export default function App() {
                     )}
                   </div>
 
-                  {nextMeetingDate && getIcebreakerForDate(nextMeetingDate) && (
-                    <motion.div
-                      initial={{ opacity: 0, scale: 0.95 }}
-                      whileInView={{ opacity: 1, scale: 1 }}
-                      viewport={{ once: true }}
-                      className={cn(
-                        "mt-12 p-8 rounded-[40px] border relative overflow-hidden group transition-all",
-                        isDarkMode ? "bg-white/5 border-white/10" : "bg-[#F5F5F0]/50 border-black/5 hover:bg-[#F5F5F0]"
-                      )}
-                    >
-                      <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity">
-                        <MessageSquare className="w-24 h-24" />
-                      </div>
-                      <div className="relative z-10 flex flex-col sm:flex-row items-center justify-between gap-6">
-                        <div className="space-y-4 text-center sm:text-left">
-                          <div className="flex items-center justify-center sm:justify-start gap-2">
-                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                            <h4 className={cn("text-[10px] uppercase tracking-[0.3em] font-bold", isDarkMode ? "text-white/40" : "text-[#5A5A40]")}>
-                              Icebreaker Activity: {format(parseISO(nextMeetingDate), 'EEEE, MMM d')}
-                            </h4>
-                          </div>
-                          <h3 className={cn("text-3xl md:text-4xl font-serif font-medium italic", isDarkMode ? "text-white" : "text-black")}>
-                            "{getIcebreakerForDate(nextMeetingDate!)}"
-                          </h3>
-                          <p className={cn("text-xs opacity-40 font-serif italic max-w-sm", isDarkMode ? "text-white" : "text-black")}>
-                            Join us for our daily icebreaker to kick off the session and connect with fellow members.
-                          </p>
-                        </div>
-                        <div className={cn(
-                          "px-6 py-4 rounded-3xl border flex flex-col items-center gap-1",
-                          isDarkMode ? "bg-white/5 border-white/10" : "bg-white border-black/10 shadow-sm"
-                        )}>
-                          <span className={cn("text-[8px] font-bold uppercase tracking-widest opacity-40", isDarkMode ? "text-white" : "text-black")}>Session Duration</span>
-                          <span className={cn("text-lg font-serif font-medium", isDarkMode ? "text-white" : "text-black")}>10 Min</span>
-                        </div>
-                      </div>
-                    </motion.div>
-                  )}
+
                 </section>
 
                 <section className="grid grid-cols-1 md:grid-cols-2 gap-12">
@@ -828,6 +791,37 @@ export default function App() {
                 </motion.div>
               );
             })()}
+
+            {getIcebreakerForDate(selectedDate) && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className={cn(
+                  "mb-8 p-4 md:p-6 rounded-[32px] border relative overflow-hidden group",
+                  isDarkMode ? "bg-white/5 border-white/10" : "bg-white border-black/5 shadow-sm"
+                )}
+              >
+                <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+                  <MessageSquare className="w-16 h-16" />
+                </div>
+                <div className="relative z-10 flex items-center justify-between gap-4">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                      <h4 className={cn("text-[8px] uppercase tracking-[0.2em] font-bold", isDarkMode ? "text-white/40" : "text-[#5A5A40]/60")}>
+                        Icebreaker Activity
+                      </h4>
+                    </div>
+                    <h3 className={cn("text-lg font-serif font-medium italic", isDarkMode ? "text-white" : "text-black")}>
+                      "{getIcebreakerForDate(selectedDate)}"
+                    </h3>
+                  </div>
+                  <span className={cn("text-[8px] font-bold uppercase tracking-widest px-3 py-1 rounded-full", isDarkMode ? "bg-white/10 text-white/40" : "bg-black/5 text-[#5A5A40]/40")}>
+                    10 Mins
+                  </span>
+                </div>
+              </motion.div>
+            )}
 
             {backupMembers.length > 0 && (
               <motion.div
