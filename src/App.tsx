@@ -687,7 +687,6 @@ export default function App() {
                           <div className={cn("flex-1 pb-8 border-b", isDarkMode ? "border-white/5" : "border-black/5")}>
                             <div className="flex justify-between items-baseline mb-4">
                               <h4 className={cn("text-2xl font-serif font-medium group-hover:italic transition-all", isDarkMode ? "text-white/90" : "text-black/90")}>{ann.title}</h4>
-                              <span className={cn("text-[10px] font-bold uppercase tracking-widest opacity-30", isDarkMode ? "text-white" : "text-black")}>{format(parseISO(ann.date), 'MMM d')}</span>
                             </div>
                             <p className={cn("text-sm leading-relaxed max-w-2xl opacity-50", isDarkMode ? "text-white" : "text-black")}>{ann.content}</p>
                           </div>
@@ -2141,6 +2140,9 @@ export default function App() {
           <div className="w-2 h-2 rounded-full bg-[#5A5A40]" />
           <span className="text-[10px] uppercase tracking-widest font-bold opacity-40 text-center md:text-left">
             ECE_B Toastmasters Club © 2026
+          </span>
+          <span className="text-[9px] uppercase tracking-[0.2em] font-bold opacity-30 text-center md:text-left">
+            Developed by santhoshkanna
           </span>
         </div>
         <div className="flex gap-6">
