@@ -191,7 +191,6 @@ export const supabaseService = {
     },
 
     async markAbsent(scheduleId: number) {
-        // Ported from server.ts
         const { data: entry, error: entryError } = await supabase
             .from('schedule')
             .select('*')
@@ -205,11 +204,13 @@ export const supabaseService = {
             throw new Error("Cannot modify past attendance");
         }
 
+        // If backup is absent, just mark them absent
         if (entry.role_id.startsWith('BACKUP_')) {
             await supabase.from('schedule').update({ status: 'absent' }).eq('id', scheduleId);
             return;
         }
 
+        // Find available backups for this specific date
         const { data: backups } = await supabase
             .from('schedule')
             .select('*')
@@ -223,6 +224,7 @@ export const supabaseService = {
             const backupMemberId = availableBackup.original_member_id;
             const absenteeMemberId = entry.original_member_id;
 
+            // 1. Assign backup to this role today
             await supabase.from('schedule').update({
                 current_member_id: backupMemberId,
                 is_substitution: true,
@@ -230,34 +232,54 @@ export const supabaseService = {
                 status: entry.date < todayStr ? 'completed' : 'scheduled'
             }).eq('id', scheduleId);
 
+            // 2. Mark the backup's own slot as 'absent' (since they are busy doing the main role)
             await supabase.from('schedule').update({ status: 'absent' }).eq('id', availableBackup.id);
 
-            // Swap and Shift logic
-            const { data: nextMeeting } = await supabase
+            // 3. Compensation Role: Find the FIRST meeting where the absentee DOES NOT have a main role
+            // This prevents "Double Booking" bugs (e.g. Haricharan appearing twice)
+            const { data: futureMeetings } = await supabase
                 .from('schedule')
                 .select('date')
                 .gt('date', entry.date)
-                .order('date')
-                .limit(1)
-                .single();
+                .order('date', { ascending: true });
 
-            if (nextMeeting) {
-                const { data: backupNextRole } = await supabase
+            const uniqueDates = Array.from(new Set(futureMeetings?.map(m => m.date) || []));
+
+            let targetDate = null;
+            for (const date of uniqueDates) {
+                const { data: rolesOnDate } = await supabase
+                    .from('schedule')
+                    .select('id, role_id')
+                    .eq('date', date)
+                    .eq('original_member_id', absenteeMemberId);
+
+                // If they have no roles (unlikely) or ONLY have a backup role, they are 'free' to take the compensation role
+                const isFree = !rolesOnDate || rolesOnDate.length === 0 || rolesOnDate.every(r => r.role_id.startsWith('BACKUP_'));
+                if (isFree) {
+                    targetDate = date;
+                    break;
+                }
+            }
+
+            if (targetDate) {
+                // Find the backup's original role on that target date to give to the absentee
+                const { data: backupRoleToTake } = await supabase
                     .from('schedule')
                     .select('id')
-                    .eq('date', nextMeeting.date)
+                    .eq('date', targetDate)
                     .eq('original_member_id', backupMemberId)
                     .single();
 
-                if (backupNextRole) {
+                if (backupRoleToTake) {
                     await supabase.from('schedule').update({
                         current_member_id: absenteeMemberId,
                         is_substitution: true,
                         replaced_by_id: backupMemberId
-                    }).eq('id', backupNextRole.id);
+                    }).eq('id', backupRoleToTake.id);
                 }
             }
         } else {
+            // No backup available
             await supabase.from('schedule').update({ status: 'absent' }).eq('id', scheduleId);
         }
     },
@@ -280,6 +302,7 @@ export const supabaseService = {
             const backupMemberId = entry.current_member_id;
             const absenteeMemberId = entry.original_member_id;
 
+            // 1. Restore the backup's placeholder status for today
             const { data: backupPlaceholder } = await supabase
                 .from('schedule')
                 .select('id')
@@ -292,21 +315,17 @@ export const supabaseService = {
                 await supabase.from('schedule').update({ status: newStatus }).eq('id', backupPlaceholder.id);
             }
 
-            const { data: nextMeeting } = await supabase
-                .from('schedule')
-                .select('date')
+            // 2. Revert the SPECIFIC role shift on the future date
+            // We only revert if that future entry is currently held by the absentee AND marks the backup as the one replaced
+            await supabase.from('schedule').update({
+                current_member_id: backupMemberId,
+                is_substitution: false,
+                replaced_by_id: null
+            })
                 .gt('date', entry.date)
-                .order('date')
-                .limit(1)
-                .single();
-
-            if (nextMeeting) {
-                await supabase.from('schedule').update({
-                    current_member_id: backupMemberId,
-                    is_substitution: false,
-                    replaced_by_id: null
-                }).eq('date', nextMeeting.date).eq('original_member_id', backupMemberId);
-            }
+                .eq('original_member_id', backupMemberId)
+                .eq('current_member_id', absenteeMemberId)
+                .eq('replaced_by_id', backupMemberId);
         }
 
         await supabase.from('schedule').update({
@@ -403,7 +422,14 @@ export const supabaseService = {
 
             const { count } = await supabase.from('schedule').select('*', { count: 'exact', head: true }).eq('date', dateStr);
 
-            if (count === 0) {
+            // Atomicity: check if roles already exist for this date before inserting
+            const { data: existingRoles } = await supabase
+                .from('schedule')
+                .select('id')
+                .eq('date', dateStr)
+                .limit(1);
+
+            if (!existingRoles || existingRoles.length === 0) {
                 let workingDayCount = 0;
                 let tempDate = baselineDate;
                 while (tempDate < currentDate) {
