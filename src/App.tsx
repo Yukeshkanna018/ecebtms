@@ -1,4 +1,4 @@
-import { useState, useEffect, FormEvent, useMemo } from 'react';
+import { useState, useEffect, FormEvent, useMemo, useRef } from 'react';
 import { format, parseISO, startOfToday } from 'date-fns';
 import {
   Calendar as CalendarIcon,
@@ -40,6 +40,7 @@ export default function App() {
   const [members, setMembers] = useState<Member[]>([]);
   const [announcements, setAnnouncements] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [scheduleView, setScheduleView] = useState<'cards' | 'table'>('cards');
   const [selectedDate, setSelectedDate] = useState<string>(format(startOfToday(), 'yyyy-MM-dd'));
@@ -82,6 +83,13 @@ export default function App() {
       checkUndo();
     }
   }, [isAdminLoggedIn]);
+
+  // Show retry button if still loading after 25 seconds (Supabase cold-start)
+  useEffect(() => {
+    if (!loading) return;
+    const timer = setTimeout(() => setLoadError(true), 25000);
+    return () => clearTimeout(timer);
+  }, [loading]);
 
   const checkUndo = async () => {
     try {
@@ -144,6 +152,7 @@ export default function App() {
   }, [icebreakerForm.date]);
 
   const [isGenerating, setIsGenerating] = useState(false);
+  const isGeneratingRef = useRef(false);
 
   const fetchIcebreakerBank = async () => {
     try {
@@ -182,7 +191,7 @@ export default function App() {
     }
   };
 
-  const fetchData = async () => {
+  const fetchData = async (retryCount = 0) => {
     try {
       const [schedData, memData, themeData, iceData] = await Promise.all([
         supabaseService.getSchedule(),
@@ -193,26 +202,40 @@ export default function App() {
 
       if (Array.isArray(schedData)) {
         setSchedule(schedData);
-        if (schedData.length === 0 && !isGenerating) {
+        // Use ref (not state) to prevent stale-closure infinite loop
+        if (schedData.length === 0 && !isGeneratingRef.current) {
+          isGeneratingRef.current = true;
           setIsGenerating(true);
           await generateSchedule();
+          return; // generateSchedule calls fetchData again when done
         }
       } else {
-        console.error('Schedule data is not an array:', schedData);
         setSchedule([]);
+      }
+
+      if (Array.isArray(memData) && memData.length === 0 && retryCount < 3) {
+        // Members empty — Supabase may be cold-starting; retry after delay
+        setTimeout(() => fetchData(retryCount + 1), 2000);
+        return;
       }
 
       if (Array.isArray(memData)) {
         setMembers(memData);
       } else {
-        console.error('Members data is not an array:', memData);
         setMembers([]);
       }
 
       if (Array.isArray(themeData)) setThemes(themeData);
       if (Array.isArray(iceData)) setIcebreakers(iceData);
+      setLoadError(false);
     } catch (error) {
       console.error('Error fetching data:', error);
+      if (retryCount < 3) {
+        // Network/Supabase error — retry with backoff
+        setTimeout(() => fetchData(retryCount + 1), 2000 * (retryCount + 1));
+        return;
+      }
+      setLoadError(true);
     } finally {
       setLoading(false);
     }
@@ -279,6 +302,7 @@ export default function App() {
     } catch (error) {
       console.error('Error generating schedule:', error);
     } finally {
+      isGeneratingRef.current = false; // always reset ref before state
       setIsGenerating(false);
       setLoading(false);
     }
@@ -479,9 +503,22 @@ export default function App() {
   if (loading) {
     return (
       <div className="min-h-screen bg-[#F5F5F0] flex items-center justify-center">
-        <div className="flex flex-col items-center gap-4">
+        <div className="flex flex-col items-center gap-6 text-center px-8">
           <RefreshCw className="w-8 h-8 animate-spin text-[#5A5A40]" />
           <p className="text-[#5A5A40] font-serif italic">Loading schedule...</p>
+          {loadError && (
+            <>
+              <p className="text-sm text-[#5A5A40]/60 max-w-xs">
+                Taking longer than usual. The server may be warming up.
+              </p>
+              <button
+                onClick={() => { setLoadError(false); setLoading(true); fetchData(); }}
+                className="px-6 py-3 bg-[#5A5A40] text-white rounded-2xl text-sm font-bold uppercase tracking-widest hover:bg-[#4A4A30] transition-all"
+              >
+                Try Again
+              </button>
+            </>
+          )}
         </div>
       </div>
     );
