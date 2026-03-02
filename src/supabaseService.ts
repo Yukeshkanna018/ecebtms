@@ -210,7 +210,7 @@ export const supabaseService = {
             return;
         }
 
-        // Find available backups for this specific date
+        // Find all potential backups for this specific date
         const { data: backups } = await supabase
             .from('schedule')
             .select('*')
@@ -218,7 +218,22 @@ export const supabaseService = {
             .in('role_id', ['BACKUP_1', 'BACKUP_2', 'BACKUP_3'])
             .order('role_id');
 
-        let availableBackup = backups?.find(b => b.status !== 'absent');
+        let availableBackup = null;
+        for (const b of backups || []) {
+            // ATOMICALLY try to claim this backup by updating its status ONLY if it's still 'scheduled'
+            // This prevents race conditions where two absentees pick the same backup at the same time
+            const { data: claimed, error: claimError } = await supabase
+                .from('schedule')
+                .update({ status: 'absent' })
+                .eq('id', b.id)
+                .eq('status', 'scheduled')
+                .select();
+
+            if (!claimError && claimed && claimed.length > 0) {
+                availableBackup = claimed[0];
+                break;
+            }
+        }
 
         if (availableBackup) {
             const backupMemberId = availableBackup.original_member_id;
@@ -232,8 +247,7 @@ export const supabaseService = {
                 status: entry.date < todayStr ? 'completed' : 'scheduled'
             }).eq('id', scheduleId);
 
-            // 2. Mark the backup's own slot as 'absent' (since they are busy doing the main role)
-            await supabase.from('schedule').update({ status: 'absent' }).eq('id', availableBackup.id);
+            // Note: Backup's own slot was already marked 'absent' in the atomic claim step above.
 
             // 3. Compensation Role: Find the FIRST meeting where the absentee DOES NOT have a main role
             // This prevents "Double Booking" bugs (e.g. Haricharan appearing twice)
