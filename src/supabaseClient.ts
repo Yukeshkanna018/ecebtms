@@ -1,8 +1,13 @@
 import { createClient } from '@supabase/supabase-js';
 
-// Use a relative proxy path to tunnel traffic through the main domain (bypasses ISP blocks)
-const supabaseUrl = '/supabase-proxy';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+// Use a proxy path to tunnel traffic through the main domain (bypasses ISP blocks)
+// Supabase client requires a valid absolute URL, so we use the site's origin
+const supabaseUrl = typeof window !== 'undefined' ? `${window.location.origin}/supabase-proxy` : '/supabase-proxy';
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'MISSING_KEY';
+
+if (supabaseAnonKey === 'MISSING_KEY') {
+    console.error('CRITICAL: VITE_SUPABASE_ANON_KEY is missing. Database connection will fail.');
+}
 
 // Custom fetch wrapper to handle ISP-level blocks (e.g. Jio) with retries
 const customFetch = async (url: RequestInfo | URL, options?: RequestInit) => {
