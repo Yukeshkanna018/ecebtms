@@ -74,6 +74,31 @@ export default function App() {
   const [isDeletingMonth, setIsDeletingMonth] = useState(false);
   const [deleteMonthSuccess, setDeleteMonthSuccess] = useState(false);
 
+  // Connectivity diagnostics
+  const [isCheckingConnectivity, setIsCheckingConnectivity] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState<'idle' | 'success' | 'blocked'>('idle');
+
+  const checkConnectivity = async () => {
+    setIsCheckingConnectivity(true);
+    try {
+      // Test the proxy path instead of direct Supabase URL
+      const start = Date.now();
+      const res = await fetch('/supabase-proxy/rest/v1/', {
+        method: 'GET',
+        headers: { 'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY || '' }
+      });
+      if (res.ok || res.status === 401) {
+        setConnectionStatus('success');
+      } else {
+        setConnectionStatus('blocked');
+      }
+    } catch (e) {
+      setConnectionStatus('blocked');
+    } finally {
+      setIsCheckingConnectivity(false);
+    }
+  };
+
   useEffect(() => {
     fetchData();
     fetchIcebreakerBank();
@@ -86,7 +111,7 @@ export default function App() {
   // Show retry button if still loading after 25 seconds (Supabase cold-start)
   useEffect(() => {
     if (!loading) return;
-    const timer = setTimeout(() => setLoadError(true), 25000);
+    const timer = setTimeout(() => setLoadError(true), 35000);
     return () => clearTimeout(timer);
   }, [loading]);
 
@@ -191,10 +216,14 @@ export default function App() {
   };
 
   const fetchData = async (retryCount = 0) => {
-    if (retryCount === 0) setLoading(true);
+    if (retryCount === 0) {
+      setLoading(true);
+      setLoadError(false);
+    }
 
     try {
-      const [schedData, memData, themeData, iceData, announcementsData] = await Promise.all([
+      // 1. Fetch data using allSettled to prevent one failure from blocking everything
+      const results = await Promise.allSettled([
         supabaseService.getSchedule(),
         supabaseService.getMembers(),
         supabaseService.getThemes(),
@@ -202,45 +231,51 @@ export default function App() {
         supabaseService.getAnnouncements()
       ]);
 
-      // Cold-start detection: if both schedule and members are empty, it's likely a cold start
-      const isColdStart = (Array.isArray(memData) && memData.length === 0) &&
-        (Array.isArray(schedData) && schedData.length === 0);
+      const [schedRes, memRes, themeRes, iceRes, annRes] = results;
 
-      if (isColdStart && retryCount < 3) {
-        console.log(`Cold start detected, retrying... (${retryCount + 1}/3)`);
+      const schedData = schedRes.status === 'fulfilled' ? schedRes.value : null;
+      const memData = memRes.status === 'fulfilled' ? memRes.value : null;
+      const themeData = themeRes.status === 'fulfilled' ? themeRes.value : null;
+      const iceData = iceRes.status === 'fulfilled' ? iceRes.value : null;
+      const announcementsData = annRes.status === 'fulfilled' ? annRes.value : null;
+
+      // Log any failures for debugging
+      results.forEach((res, idx) => {
+        if (res.status === 'rejected') {
+          const names = ['Schedule', 'Members', 'Themes', 'Icebreakers', 'Announcements'];
+          console.error(`Failed to fetch ${names[idx]}:`, res.reason);
+        }
+      });
+
+      // Cold-start detection: if critical data (members or schedule) is missing, it's likely a cold start or first run
+      const isCriticalDataMissing = (!memData || memData.length === 0) && (!schedData || schedData.length === 0);
+
+      if (isCriticalDataMissing && retryCount < 3) {
+        console.log(`Critical data missing, retrying... (${retryCount + 1}/3)`);
         setTimeout(() => fetchData(retryCount + 1), 2000);
         return;
       }
 
+      // Update states regardless of failure (fallback to empty array if needed)
       if (Array.isArray(schedData)) {
         setSchedule(schedData);
-        if (schedData.length === 0 && !isGeneratingRef.current) {
+        if (schedData.length === 0 && !isGeneratingRef.current && memData && memData.length > 0) {
           isGeneratingRef.current = true;
           setIsGenerating(true);
           await generateSchedule();
           return;
         }
-      } else {
-        setSchedule([]);
       }
 
-      if (Array.isArray(memData)) {
-        setMembers(memData);
-      } else {
-        setMembers([]);
-      }
-
-      if (Array.isArray(announcementsData)) {
-        setAnnouncements(announcementsData);
-      }
-
+      if (Array.isArray(memData)) setMembers(memData);
+      if (Array.isArray(announcementsData)) setAnnouncements(announcementsData);
       if (Array.isArray(themeData)) setThemes(themeData);
       if (Array.isArray(iceData)) setIcebreakers(iceData);
 
       setLoadError(false);
       setLoading(false);
     } catch (error) {
-      console.error('Error fetching data:', error);
+      console.error('Unexpected error in fetchData:', error);
       if (retryCount < 3) {
         setTimeout(() => fetchData(retryCount + 1), 2000 * (retryCount + 1));
         return;
@@ -513,15 +548,40 @@ export default function App() {
           <p className="text-[#5A5A40] font-serif italic">Loading schedule...</p>
           {loadError && (
             <>
-              <p className="text-sm text-[#5A5A40]/60 max-w-xs">
-                Taking longer than usual. The server may be warming up.
-              </p>
-              <button
-                onClick={() => { setLoadError(false); setLoading(true); fetchData(); }}
-                className="px-6 py-3 bg-[#5A5A40] text-white rounded-2xl text-sm font-bold uppercase tracking-widest hover:bg-[#4A4A30] transition-all"
-              >
-                Try Again
-              </button>
+              <div className="bg-amber-500/10 p-6 rounded-[32px] border border-amber-500/20 max-w-sm">
+                <p className="text-sm text-[#5A5A40] mb-4">
+                  Taking longer than usual. This might be due to server warming up or ISP connectivity issues (common on Jio/Airtel).
+                </p>
+
+                <div className="space-y-3">
+                  <button
+                    onClick={() => { setLoadError(false); setLoading(true); fetchData(); }}
+                    className="w-full px-6 py-3 bg-[#5A5A40] text-white rounded-2xl text-xs font-bold uppercase tracking-widest hover:bg-[#4A4A30] transition-all"
+                  >
+                    Try Again
+                  </button>
+
+                  <button
+                    onClick={checkConnectivity}
+                    disabled={isCheckingConnectivity}
+                    className="w-full px-6 py-3 bg-white border border-black/10 text-black rounded-2xl text-xs font-bold uppercase tracking-widest hover:bg-gray-50 transition-all flex items-center justify-center gap-2"
+                  >
+                    {isCheckingConnectivity ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Info className="w-3 h-3" />}
+                    Check Connectivity
+                  </button>
+                </div>
+
+                {connectionStatus === 'blocked' && (
+                  <p className="mt-4 text-[10px] text-red-600 font-medium">
+                    ⚠️ Supabase backend appears blocked by your ISP. Try switching to a different network or using a VPN.
+                  </p>
+                )}
+                {connectionStatus === 'success' && (
+                  <p className="mt-4 text-[10px] text-emerald-600 font-medium">
+                    ✅ Backend is reachable. The server may just be very slow to respond.
+                  </p>
+                )}
+              </div>
             </>
           )}
         </div>
@@ -576,6 +636,13 @@ export default function App() {
               ))}
             </nav>
             <div className="flex items-center gap-2">
+              <button
+                onClick={() => fetchData()}
+                className="p-2 rounded-full hover:bg-black/5 transition-colors text-[#5A5A40]/60 hover:text-[#5A5A40]"
+                title="Refresh Data"
+              >
+                <RefreshCw className={cn("w-5 h-5", loading && "animate-spin")} />
+              </button>
               <button
                 onClick={() => setIsMenuOpen(!isMenuOpen)}
                 className="md:hidden p-2 rounded-full hover:bg-black/5 transition-colors"
@@ -698,7 +765,15 @@ export default function App() {
                         </div>
                       </motion.div>
                     )) : (
-                      <p className={cn("font-serif italic opacity-40", isDarkMode ? "text-white" : "text-black")}>No dispatches at this time.</p>
+                      <div className="flex flex-col items-center gap-4 py-12 text-center">
+                        <p className={cn("font-serif italic opacity-40", isDarkMode ? "text-white" : "text-black")}>No dispatches at this time.</p>
+                        <button
+                          onClick={() => fetchData()}
+                          className="text-xs uppercase tracking-widest font-bold text-[#5A5A40] underline underline-offset-4"
+                        >
+                          Check for updates
+                        </button>
+                      </div>
                     )}
                   </div>
 
@@ -1113,6 +1188,18 @@ export default function App() {
                     );
                   })}
                 </AnimatePresence>
+                {currentDayRoles.length === 0 && (
+                  <div className="col-span-full py-20 text-center space-y-4">
+                    <CalendarIcon className="w-12 h-12 mx-auto opacity-10" />
+                    <p className="font-serif italic opacity-40">No roles scheduled for this date.</p>
+                    <button
+                      onClick={() => fetchData()}
+                      className="text-xs uppercase tracking-widest font-bold text-[#5A5A40] underline underline-offset-4"
+                    >
+                      Sync schedule
+                    </button>
+                  </div>
+                )}
               </div>
             ) : (
               <div className={cn("rounded-[32px] md:rounded-[40px] border overflow-hidden", isDarkMode ? "bg-white/5 border-white/10" : "bg-white border-black/5 shadow-sm")}>

@@ -119,31 +119,31 @@ BEGIN
     END IF;
 
     IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Public Admin Access' AND tablename = 'members') THEN
-        CREATE POLICY "Public Admin Access" ON members FOR ALL USING (true);
+        CREATE POLICY "Public Admin Access" ON members FOR ALL USING (true) WITH CHECK (true);
     END IF;
     IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Public Admin Access' AND tablename = 'schedule') THEN
-        CREATE POLICY "Public Admin Access" ON schedule FOR ALL USING (true);
+        CREATE POLICY "Public Admin Access" ON schedule FOR ALL USING (true) WITH CHECK (true);
     END IF;
     IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Public Admin Access' AND tablename = 'daily_icebreaker') THEN
-        CREATE POLICY "Public Admin Access" ON daily_icebreaker FOR ALL USING (true);
+        CREATE POLICY "Public Admin Access" ON daily_icebreaker FOR ALL USING (true) WITH CHECK (true);
     END IF;
     IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Public Admin Access' AND tablename = 'daily_theme') THEN
-        CREATE POLICY "Public Admin Access" ON daily_theme FOR ALL USING (true);
+        CREATE POLICY "Public Admin Access" ON daily_theme FOR ALL USING (true) WITH CHECK (true);
     END IF;
     IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Public Admin Access' AND tablename = 'icebreaker_bank') THEN
-        CREATE POLICY "Public Admin Access" ON icebreaker_bank FOR ALL USING (true);
+        CREATE POLICY "Public Admin Access" ON icebreaker_bank FOR ALL USING (true) WITH CHECK (true);
     END IF;
     IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Public Admin Access' AND tablename = 'holidays') THEN
-        CREATE POLICY "Public Admin Access" ON holidays FOR ALL USING (true);
+        CREATE POLICY "Public Admin Access" ON holidays FOR ALL USING (true) WITH CHECK (true);
     END IF;
     IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Public Admin Access' AND tablename = 'announcements') THEN
-        CREATE POLICY "Public Admin Access" ON announcements FOR ALL USING (true);
+        CREATE POLICY "Public Admin Access" ON announcements FOR ALL USING (true) WITH CHECK (true);
     END IF;
     IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Public Admin Access' AND tablename = 'queries') THEN
-        CREATE POLICY "Public Admin Access" ON queries FOR ALL USING (true);
+        CREATE POLICY "Public Admin Access" ON queries FOR ALL USING (true) WITH CHECK (true);
     END IF;
     IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Public Admin Access' AND tablename = 'schedule_history') THEN
-        CREATE POLICY "Public Admin Access" ON schedule_history FOR ALL USING (true);
+        CREATE POLICY "Public Admin Access" ON schedule_history FOR ALL USING (true) WITH CHECK (true);
     END IF;
 END $$;
 
