@@ -4,10 +4,13 @@ export const onRequest: PagesFunction = async (context) => {
 
     // Extract the path after /supabase-proxy/
     // params.path is an array from [[path]].ts
-    const supabasePath = Array.isArray(params.path) ? params.path.join('/') : '';
+    const pathParts = Array.isArray(params.path) ? params.path : [];
+    const supabasePath = pathParts.join('/');
 
-    // Construct the target Supabase URL
-    const targetUrl = new URL(`https://olmmjovxfqminuewygeq.supabase.co/${supabasePath}${url.search}`);
+    // Construct the target Supabase URL safely
+    const baseUrl = 'https://olmmjovxfqminuewygeq.supabase.co';
+    const targetUrl = new URL(supabasePath, baseUrl);
+    targetUrl.search = url.search;
 
     // Clone the request headers and prepare for proxying
     const headers = new Headers(request.headers);
