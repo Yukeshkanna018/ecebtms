@@ -228,19 +228,21 @@ export const supabaseService = {
             .in('role_id', ['BACKUP_1', 'BACKUP_2', 'BACKUP_3'])
             .order('role_id');
 
-        // Fetch ALL assignments for today to check for "Double Booking"
-        const { data: todayAssignments } = await supabase
-            .from('schedule')
-            .select('current_member_id')
-            .eq('date', entry.date)
-            .neq('status', 'absent');
-
-        const busyMemberIds = new Set(todayAssignments?.map(a => a.current_member_id) || []);
-
         let availableBackup = null;
         for (const b of backups || []) {
+            // RE-FETCH ALL assignments for today to check for "Double Booking" 
+            // This MUST be inside the loop to prevent race conditions from concurrent calls
+            const { data: currentAssignments } = await supabase
+                .from('schedule')
+                .select('current_member_id')
+                .eq('date', entry.date)
+                .neq('status', 'absent');
+
+            const busyMemberIds = new Set(currentAssignments?.map(a => a.current_member_id) || []);
+
             // Check if this backup member is already busy with another role today
             if (busyMemberIds.has(b.original_member_id)) {
+                console.log(`Backup ${b.original_member_id} is already serving a role today. Skipping.`);
                 continue;
             }
 
