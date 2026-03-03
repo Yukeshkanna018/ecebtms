@@ -228,8 +228,22 @@ export const supabaseService = {
             .in('role_id', ['BACKUP_1', 'BACKUP_2', 'BACKUP_3'])
             .order('role_id');
 
+        // Fetch ALL assignments for today to check for "Double Booking"
+        const { data: todayAssignments } = await supabase
+            .from('schedule')
+            .select('current_member_id')
+            .eq('date', entry.date)
+            .neq('status', 'absent');
+
+        const busyMemberIds = new Set(todayAssignments?.map(a => a.current_member_id) || []);
+
         let availableBackup = null;
         for (const b of backups || []) {
+            // Check if this backup member is already busy with another role today
+            if (busyMemberIds.has(b.original_member_id)) {
+                continue;
+            }
+
             // ATOMICALLY try to claim this backup by updating its status ONLY if it's still 'scheduled'
             // This prevents race conditions where two absentees pick the same backup at the same time
             const { data: claimed, error: claimError } = await supabase
@@ -507,14 +521,28 @@ export const supabaseService = {
                 // Backups (3 members - Triad 1 of the NEXT set)
                 const setIdxForBackup = workingDayCount % 4;
                 const nextSetIdx = (setIdxForBackup + 1) % 4;
-                for (let bIdx = 0; bIdx < 3; bIdx++) {
-                    const backupMember = members[nextSetIdx * 15 + bIdx];
-                    newEntries.push({
-                        date: dateStr,
-                        role_id: `BACKUP_${bIdx + 1}`,
-                        original_member_id: backupMember.id,
-                        current_member_id: backupMember.id
-                    });
+
+                // Track members already assigned to main roles today
+                const assignedMainMemberIds = new Set(
+                    newEntries
+                        .filter(e => e.date === dateStr && !e.role_id.startsWith('BACKUP_'))
+                        .map(e => e.original_member_id)
+                );
+
+                let bIdx = 0;
+                let offset = 0;
+                while (bIdx < 3 && offset < members.length) {
+                    const backupMember = members[(nextSetIdx * 15 + offset) % members.length];
+                    if (!assignedMainMemberIds.has(backupMember.id)) {
+                        newEntries.push({
+                            date: dateStr,
+                            role_id: `BACKUP_${bIdx + 1}`,
+                            original_member_id: backupMember.id,
+                            current_member_id: backupMember.id
+                        });
+                        bIdx++;
+                    }
+                    offset++;
                 }
             }
             currentDate = addDays(currentDate, 1);
