@@ -1,5 +1,5 @@
 import { supabase } from './supabaseClient';
-import { format, parseISO, addDays, isWeekend, endOfMonth } from 'date-fns';
+import { format, parseISO, addDays, endOfMonth } from 'date-fns';
 import { ROLES } from './types';
 
 export const supabaseService = {
@@ -182,6 +182,91 @@ export const supabaseService = {
             .from('queries')
             .insert({ name, roll_no: rollNo, message, date: format(new Date(), 'yyyy-MM-dd') });
         if (error) throw error;
+    },
+
+    async getHolidays() {
+        const { data, error } = await supabase
+            .from('holidays')
+            .select('*')
+            .order('date');
+        if (error) throw error;
+        return data;
+    },
+
+    async removeHoliday(date: string) {
+        // 1. Delete from holidays table
+        const { error: delError } = await supabase
+            .from('holidays')
+            .delete()
+            .eq('date', date);
+        if (delError) throw delError;
+
+        // 2. Identify all meetings scheduled AFTER this date to shift them BACKWARD
+        const { data: scheduleData } = await supabase
+            .from('schedule')
+            .select('date')
+            .gt('date', date)
+            .order('date', { ascending: true });
+
+        const uniqueDates = Array.from(new Set(scheduleData?.map(d => d.date)));
+        if (uniqueDates.length === 0) return;
+
+        // Get updated holidays list to find gaps
+        const { data: holidayData } = await supabase.from('holidays').select('date');
+        const holidayDates = holidayData?.map(h => h.date) || [];
+
+        // Shift backwards: current date moves to the first available slot >= date
+        // We do this by essentially re-calculating the dates for all subsequent meetings
+        let currentAvailableDate = parseISO(date);
+
+        for (const d of uniqueDates) {
+            // Find the NEXT available date for this meeting "d"
+            // Since we are shifting BACK, it will likely occupy the hole created by the removed holiday
+            while (currentAvailableDate.getDay() === 0 || holidayDates.includes(format(currentAvailableDate, "yyyy-MM-dd"))) {
+                currentAvailableDate = addDays(currentAvailableDate, 1);
+            }
+
+            const targetDateStr = format(currentAvailableDate, "yyyy-MM-dd");
+
+            if (targetDateStr !== d) {
+                await Promise.all([
+                    supabase.from('schedule').update({ date: targetDateStr }).eq('date', d),
+                    supabase.from('daily_icebreaker').update({ date: targetDateStr }).eq('date', d),
+                    supabase.from('daily_theme').update({ date: targetDateStr }).eq('date', d)
+                ]);
+            }
+
+            currentAvailableDate = addDays(currentAvailableDate, 1);
+        }
+    },
+
+    async addAdhocMeeting(date: string, reason: string) {
+        // 1. If it was a holiday, remove it
+        await supabase.from('holidays').delete().eq('date', date);
+
+        // 2. Shift all subsequent meetings FORWARD to make room
+        const { data: scheduleDates } = await supabase.from('schedule').select('date').gte('date', date).order('date', { ascending: false });
+        const dates = Array.from(new Set(scheduleDates?.map(d => d.date)));
+
+        const { data: holidayData } = await supabase.from('holidays').select('date');
+        const holidayDates = holidayData?.map(h => h.date) || [];
+
+        for (const d of dates) {
+            let nextDate = addDays(parseISO(d), 1);
+            while (nextDate.getDay() === 0 || holidayDates.includes(format(nextDate, "yyyy-MM-dd"))) {
+                nextDate = addDays(nextDate, 1);
+            }
+            const nextDateStr = format(nextDate, "yyyy-MM-dd");
+
+            await Promise.all([
+                supabase.from('schedule').update({ date: nextDateStr }).eq('date', d),
+                supabase.from('daily_icebreaker').update({ date: nextDateStr }).eq('date', d),
+                supabase.from('daily_theme').update({ date: nextDateStr }).eq('date', d)
+            ]);
+        }
+
+        // 3. Generate schedule for JUST this date
+        await this.generateSchedule(date);
     },
 
     async resolveQuery(id: number) {
@@ -581,7 +666,7 @@ export const supabaseService = {
 
         for (const d of dates) {
             let nextDate = addDays(parseISO(d), 1);
-            while (isWeekend(nextDate) || holidayDates.includes(format(nextDate, "yyyy-MM-dd"))) {
+            while (nextDate.getDay() === 0 || holidayDates.includes(format(nextDate, "yyyy-MM-dd"))) {
                 nextDate = addDays(nextDate, 1);
             }
             const nextDateStr = format(nextDate, "yyyy-MM-dd");
@@ -590,6 +675,25 @@ export const supabaseService = {
                 supabase.from('schedule').update({ date: nextDateStr }).eq('date', d),
                 supabase.from('daily_icebreaker').update({ date: nextDateStr }).eq('date', d)
             ]);
+        }
+    },
+
+    async rescheduleMeeting(sourceDate: string, targetDate: string) {
+        if (targetDate < sourceDate) {
+            // Shifting backward: remove holidays between target and source
+            const { data: holidaysInRange } = await supabase
+                .from('holidays')
+                .select('date')
+                .gte('date', targetDate)
+                .lt('date', sourceDate);
+
+            if (holidaysInRange && holidaysInRange.length > 0) {
+                // To be safe, we remove the holiday at the target date and trigger a backward shift
+                await this.removeHoliday(targetDate);
+            }
+        } else if (targetDate > sourceDate) {
+            // Shifting forward: declare source date as holiday
+            await this.shiftSchedule(sourceDate, "Rescheduled");
         }
     },
 

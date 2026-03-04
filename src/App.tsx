@@ -1,5 +1,5 @@
 import { useState, useEffect, FormEvent, useMemo, useRef } from 'react';
-import { format, parseISO, startOfToday } from 'date-fns';
+import { format, parseISO, startOfToday, addDays } from 'date-fns';
 import {
   Calendar as CalendarIcon,
   Users,
@@ -19,7 +19,8 @@ import {
   MessageSquare,
   Send,
   Plus,
-  Trash2
+  Trash2,
+  Edit
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ROLES, type ScheduleEntry, type Member } from './types';
@@ -73,6 +74,14 @@ export default function App() {
   const [deleteMonthForm, setDeleteMonthForm] = useState({ month: format(startOfToday(), 'MM'), year: format(startOfToday(), 'yyyy') });
   const [isDeletingMonth, setIsDeletingMonth] = useState(false);
   const [deleteMonthSuccess, setDeleteMonthSuccess] = useState(false);
+  const [holidays, setHolidays] = useState<any[]>([]);
+  const [isRemovingHoliday, setIsRemovingHoliday] = useState<string | null>(null);
+  const [adhocMeetingForm, setAdhocMeetingForm] = useState({ date: format(addDays(startOfToday(), 1), 'yyyy-MM-dd'), reason: '' });
+  const [isAddingAdhoc, setIsAddingAdhoc] = useState(false);
+  const [adhocSuccess, setAdhocSuccess] = useState(false);
+  const [isRescheduleModalOpen, setIsRescheduleModalOpen] = useState(false);
+  const [isRescheduling, setIsRescheduling] = useState(false);
+  const [rescheduleForm, setRescheduleForm] = useState({ sourceDate: '', targetDate: '' });
 
   // Connectivity diagnostics
   const [isCheckingConnectivity, setIsCheckingConnectivity] = useState(false);
@@ -105,8 +114,18 @@ export default function App() {
     if (isAdminLoggedIn) {
       fetchQueries();
       checkUndo();
+      fetchHolidays();
     }
   }, [isAdminLoggedIn]);
+
+  const fetchHolidays = async () => {
+    try {
+      const data = await supabaseService.getHolidays();
+      setHolidays(data || []);
+    } catch (e) {
+      console.error('Error fetching holidays:', e);
+    }
+  };
 
   // Show retry button if still loading after 25 seconds (Supabase cold-start)
   useEffect(() => {
@@ -487,6 +506,66 @@ export default function App() {
     }
   };
 
+  const handleReschedule = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!rescheduleForm.sourceDate || !rescheduleForm.targetDate) return;
+    if (rescheduleForm.sourceDate === rescheduleForm.targetDate) {
+      setIsRescheduleModalOpen(false);
+      return;
+    }
+
+    const direction = rescheduleForm.targetDate < rescheduleForm.sourceDate ? 'BACKWARD' : 'FORWARD';
+    if (!confirm(`Are you sure you want to reschedule ${rescheduleForm.sourceDate} to ${rescheduleForm.targetDate}? This will shift subsequent meetings ${direction}.`)) return;
+
+    setIsRescheduling(true);
+    try {
+      await supabaseService.rescheduleMeeting(rescheduleForm.sourceDate, rescheduleForm.targetDate);
+      await fetchData();
+      setIsRescheduleModalOpen(false);
+      alert("Reschedule Complete!");
+    } catch (err) {
+      console.error('Error rescheduling:', err);
+      alert("Reschedule Failed.");
+    } finally {
+      setIsRescheduling(false);
+    }
+  };
+
+  const removeHoliday = async (date: string) => {
+    if (!confirm(`Are you sure you want to make ${date} a working day? Subsequent meetings will be shifted back to fill the gap.`)) return;
+    setIsRemovingHoliday(date);
+    try {
+      await supabaseService.removeHoliday(date);
+      await fetchData();
+      await fetchHolidays();
+      alert("Holiday removed and schedule shifted back.");
+    } catch (error) {
+      console.error('Error removing holiday:', error);
+      alert("Failed to remove holiday.");
+    } finally {
+      setIsRemovingHoliday(null);
+    }
+  };
+
+  const addAdhocMeeting = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!confirm(`Add ad-hoc meeting on ${adhocMeetingForm.date}? Subsequent meetings will be shifted forward.`)) return;
+    setIsAddingAdhoc(true);
+    try {
+      await supabaseService.addAdhocMeeting(adhocMeetingForm.date, adhocMeetingForm.reason);
+      await fetchData();
+      await fetchHolidays();
+      setAdhocSuccess(true);
+      setTimeout(() => setAdhocSuccess(false), 3000);
+      setAdhocMeetingForm({ date: format(addDays(startOfToday(), 1), 'yyyy-MM-dd'), reason: '' });
+    } catch (error) {
+      console.error('Error adding ad-hoc meeting:', error);
+      alert("Failed to add ad-hoc meeting.");
+    } finally {
+      setIsAddingAdhoc(false);
+    }
+  };
+
   const handleLogin = (e: FormEvent) => {
     e.preventDefault();
     if (password === 'ecebtms@123321') {
@@ -859,6 +938,18 @@ export default function App() {
                 >
                   Table
                 </button>
+                {isAdminLoggedIn && (
+                  <button
+                    onClick={() => {
+                      setRescheduleForm({ sourceDate: selectedDate, targetDate: '' });
+                      setIsRescheduleModalOpen(true);
+                    }}
+                    className="flex items-center gap-2 px-4 md:px-6 py-2 rounded-2xl bg-[#5A5A40]/10 text-[#5A5A40] hover:bg-[#5A5A40]/20 transition-all font-bold text-[10px] md:text-xs uppercase tracking-widest whitespace-nowrap"
+                  >
+                    <CalendarIcon className="w-3 h-3 md:w-4 h-4" />
+                    Reschedule
+                  </button>
+                )}
               </div>
 
               <div className="flex items-center justify-between md:justify-start gap-4 bg-white rounded-3xl p-1.5 md:p-2 shadow-sm border border-black/5">
@@ -874,9 +965,23 @@ export default function App() {
                   <p className="text-[8px] uppercase tracking-[0.2em] font-bold text-[#5A5A40]">
                     {format(parseISO(selectedDate), 'EEEE')}
                   </p>
-                  <h2 className="text-xs md:text-sm font-serif font-medium">
-                    {format(parseISO(selectedDate), 'MMM d, yyyy')}
-                  </h2>
+                  <div className="flex items-center justify-center gap-2">
+                    <h2 className="text-xs md:text-sm font-serif font-medium">
+                      {format(parseISO(selectedDate), 'MMM d, yyyy')}
+                    </h2>
+                    {isAdminLoggedIn && (
+                      <button
+                        onClick={() => {
+                          setRescheduleForm({ sourceDate: selectedDate, targetDate: '' });
+                          setIsRescheduleModalOpen(true);
+                        }}
+                        className="p-1 rounded-full hover:bg-black/5 transition-colors opacity-30 hover:opacity-100"
+                        title="Change Date"
+                      >
+                        <Edit className="w-3 h-3" />
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 <button
@@ -1775,11 +1880,185 @@ export default function App() {
                       Logout
                     </button>
                   </div>
+
+                  {/* DATE MANAGEMENT SECTION */}
+                  <div className="space-y-6">
+                    <div className="flex items-center gap-4">
+                      <div className={cn("h-[1px] w-12", isDarkMode ? "bg-white/20" : "bg-[#5A5A40]")} />
+                      <h3 className={cn("text-xs uppercase tracking-[0.4em] font-bold", isDarkMode ? "text-white/60" : "text-[#5A5A40]")}>Date & Schedule Management</h3>
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                      {/* Manage Holidays */}
+                      <div className={cn(
+                        "p-8 rounded-[40px] border space-y-6 relative overflow-hidden",
+                        isDarkMode ? "bg-white/5 border-white/10" : "bg-white border-black/5 shadow-sm"
+                      )}>
+                        <div className="flex items-center gap-3">
+                          <CalendarIcon className="w-5 h-5 text-emerald-500" />
+                          <h4 className="text-xs uppercase tracking-[0.2em] font-bold text-[#5A5A40]">Unexpected Working Days</h4>
+                        </div>
+                        <p className="text-[10px] opacity-40 leading-relaxed">
+                          Remove a holiday to make it a working day. Future meetings will shift back.
+                        </p>
+                        <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+                          {holidays.filter(h => h.date >= today).length > 0 ? (
+                            holidays.filter(h => h.date >= today).map(h => (
+                              <div key={h.date} className={cn(
+                                "flex items-center justify-between p-4 rounded-3xl border",
+                                isDarkMode ? "bg-black/20 border-white/5" : "bg-gray-50 border-black/5"
+                              )}>
+                                <div>
+                                  <p className="text-sm font-medium">{format(parseISO(h.date), 'MMM d, yyyy')}</p>
+                                  <p className="text-[10px] opacity-40">{h.reason}</p>
+                                </div>
+                                <button
+                                  onClick={() => removeHoliday(h.date)}
+                                  disabled={isRemovingHoliday === h.date}
+                                  className="px-4 py-2 bg-[#5A5A40] text-white text-[10px] font-bold uppercase tracking-widest rounded-xl hover:bg-[#4A4A30] transition-all disabled:opacity-50"
+                                >
+                                  Make Working
+                                </button>
+                              </div>
+                            ))
+                          ) : (
+                            <p className="text-[10px] italic opacity-30 text-center py-4">No upcoming holidays.</p>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Add Ad-hoc */}
+                      <div className={cn(
+                        "p-8 rounded-[40px] border space-y-6 relative overflow-hidden",
+                        isDarkMode ? "bg-white/5 border-white/10" : "bg-white border-black/5 shadow-sm"
+                      )}>
+                        <AnimatePresence>
+                          {adhocSuccess && (
+                            <motion.div
+                              initial={{ opacity: 0, y: -20 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              exit={{ opacity: 0, y: -20 }}
+                              className="absolute inset-x-0 top-0 bg-emerald-500 text-white py-2 text-center text-[8px] uppercase tracking-widest font-bold z-10"
+                            >
+                              Meeting Added Successfully
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                        <div className="flex items-center gap-3">
+                          <Plus className="w-5 h-5 text-blue-500" />
+                          <h4 className="text-xs uppercase tracking-[0.2em] font-bold text-[#5A5A40]">Add New Meeting Date</h4>
+                        </div>
+                        <p className="text-[10px] opacity-40 leading-relaxed">
+                          Insert a meeting on any date. Subsequent meetings shift forward.
+                        </p>
+                        <form onSubmit={addAdhocMeeting} className="space-y-4">
+                          <div className="space-y-4">
+                            <div className="space-y-2">
+                              <label className="text-[10px] uppercase tracking-widest font-bold opacity-40 ml-4">Select Date</label>
+                              <input
+                                type="date"
+                                value={adhocMeetingForm.date}
+                                onChange={(e) => setAdhocMeetingForm(prev => ({ ...prev, date: e.target.value }))}
+                                className={cn(
+                                  "w-full px-6 py-3 rounded-2xl border transition-all outline-none",
+                                  isDarkMode ? "bg-black/40 border-white/10 text-white" : "bg-[#F5F5F0] border-black/5 text-black"
+                                )}
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <label className="text-[10px] uppercase tracking-widest font-bold opacity-40 ml-4">Note (Optional)</label>
+                              <input
+                                type="text"
+                                value={adhocMeetingForm.reason}
+                                onChange={(e) => setAdhocMeetingForm(prev => ({ ...prev, reason: e.target.value }))}
+                                placeholder="e.g. Special Session"
+                                className={cn(
+                                  "w-full px-6 py-3 rounded-2xl border transition-all outline-none",
+                                  isDarkMode ? "bg-black/40 border-white/10 text-white" : "bg-[#F5F5F0] border-black/5 text-black"
+                                )}
+                              />
+                            </div>
+                          </div>
+                          <button
+                            type="submit"
+                            disabled={isAddingAdhoc}
+                            className="w-full bg-[#5A5A40] text-white py-3 rounded-2xl font-bold text-xs tracking-widest uppercase hover:bg-[#4A4A30] transition-all disabled:opacity-50"
+                          >
+                            {isAddingAdhoc ? 'Processing...' : 'Add & Shift'}
+                          </button>
+                        </form>
+                      </div>
+                    </div>
+
+                    {/* Declare Holiday */}
+                    <div className={cn(
+                      "p-8 rounded-[40px] border space-y-6 relative overflow-hidden",
+                      isDarkMode ? "bg-white/5 border-white/10" : "bg-white border-black/5 shadow-sm"
+                    )}>
+                      <AnimatePresence>
+                        {shiftSuccess && (
+                          <motion.div
+                            initial={{ opacity: 0, y: -20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -20 }}
+                            className="absolute inset-x-0 top-0 bg-emerald-500 text-white py-2 text-center text-[8px] uppercase tracking-widest font-bold z-10"
+                          >
+                            Schedule Shifted Successfully
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                      <div className="flex items-center gap-3">
+                        <AlertCircle className="w-5 h-5 text-amber-500" />
+                        <h4 className="text-xs uppercase tracking-[0.2em] font-bold text-[#5A5A40]">Declare Unexpected Holiday</h4>
+                      </div>
+                      <form onSubmit={shiftSchedule} className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="space-y-2">
+                          <label className="text-[10px] uppercase tracking-widest font-bold opacity-40 ml-4">Date</label>
+                          <select
+                            value={shiftForm.startDate}
+                            onChange={(e) => setShiftForm(prev => ({ ...prev, startDate: e.target.value }))}
+                            className={cn(
+                              "w-full px-6 py-3 rounded-2xl border transition-all outline-none",
+                              isDarkMode ? "bg-black/40 border-white/10 text-white" : "bg-[#F5F5F0] border-black/5 text-black"
+                            )}
+                          >
+                            {dates.map(d => (
+                              <option key={d} value={d}>{format(parseISO(d), 'MMM d, yyyy')}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-[10px] uppercase tracking-widest font-bold opacity-40 ml-4">Reason</label>
+                          <input
+                            type="text"
+                            value={shiftForm.reason}
+                            onChange={(e) => setShiftForm(prev => ({ ...prev, reason: e.target.value }))}
+                            className={cn(
+                              "w-full px-6 py-3 rounded-2xl border transition-all outline-none",
+                              isDarkMode ? "bg-black/40 border-white/10 text-white" : "bg-[#F5F5F0] border-black/5 text-black"
+                            )}
+                          />
+                        </div>
+                        <div className="flex items-end">
+                          <button
+                            type="submit"
+                            disabled={isShifting}
+                            className="w-full bg-amber-500 text-white py-3 rounded-2xl font-bold text-xs tracking-widest uppercase hover:bg-amber-600 transition-all disabled:opacity-50"
+                          >
+                            {isShifting ? '...' : 'Shift Forward'}
+                          </button>
+                        </div>
+                      </form>
+                    </div>
+                  </div>
+
+                  <hr className="opacity-10" />
+
                   <div className={cn(
                     "p-8 rounded-[40px] border space-y-6",
                     isDarkMode ? "bg-white/5 border-white/10" : "bg-white border-black/5 shadow-sm"
                   )}>
-                    <h4 className="text-xs uppercase tracking-[0.2em] font-bold text-[#5A5A40]">Quick Actions</h4>
+                    <h4 className="text-xs uppercase tracking-[0.2em] font-bold text-[#5A5A40]">System Controls</h4>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <button
                         onClick={() => generateSchedule()}
@@ -1877,70 +2156,6 @@ export default function App() {
                         Add Member
                       </button>
                     </div>
-                  </div>
-
-                  <div className={cn(
-                    "p-8 rounded-[40px] border space-y-6 relative overflow-hidden",
-                    isDarkMode ? "bg-white/5 border-white/10" : "bg-white border-black/5 shadow-sm"
-                  )}>
-                    <AnimatePresence>
-                      {shiftSuccess && (
-                        <motion.div
-                          initial={{ opacity: 0, y: -20 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, y: -20 }}
-                          className="absolute inset-x-0 top-0 bg-emerald-500 text-white py-2 text-center text-[8px] uppercase tracking-widest font-bold z-10"
-                        >
-                          Schedule Shifted Successfully
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                    <div className="flex items-center gap-3">
-                      <AlertCircle className="w-5 h-5 text-amber-500" />
-                      <h4 className="text-xs uppercase tracking-[0.2em] font-bold text-[#5A5A40]">Declare Unexpected Holiday</h4>
-                    </div>
-                    <p className="text-[10px] opacity-40 leading-relaxed">
-                      Use this when a meeting day is cancelled (e.g., rain). All roles for that day and future days will move forward to the next working day.
-                    </p>
-                    <form onSubmit={shiftSchedule} className="space-y-4">
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <label className="text-[10px] uppercase tracking-widest font-bold opacity-40 ml-4">Holiday Date</label>
-                          <select
-                            value={shiftForm.startDate}
-                            onChange={(e) => setShiftForm(prev => ({ ...prev, startDate: e.target.value }))}
-                            className={cn(
-                              "w-full px-6 py-3 rounded-2xl border transition-all outline-none",
-                              isDarkMode ? "bg-black/40 border-white/10 text-white" : "bg-[#F5F5F0] border-black/5 text-black"
-                            )}
-                          >
-                            {dates.map(d => (
-                              <option key={d} value={d}>{format(parseISO(d), 'MMM d, yyyy')}</option>
-                            ))}
-                          </select>
-                        </div>
-                        <div className="space-y-2">
-                          <label className="text-[10px] uppercase tracking-widest font-bold opacity-40 ml-4">Reason</label>
-                          <input
-                            type="text"
-                            value={shiftForm.reason}
-                            onChange={(e) => setShiftForm(prev => ({ ...prev, reason: e.target.value }))}
-                            placeholder="e.g. Heavy Rain"
-                            className={cn(
-                              "w-full px-6 py-3 rounded-2xl border transition-all outline-none",
-                              isDarkMode ? "bg-black/40 border-white/10 text-white" : "bg-[#F5F5F0] border-black/5 text-black"
-                            )}
-                          />
-                        </div>
-                      </div>
-                      <button
-                        type="submit"
-                        disabled={isShifting}
-                        className="w-full bg-amber-500 text-white py-3 rounded-2xl font-bold text-xs tracking-widest uppercase hover:bg-amber-600 transition-all disabled:opacity-50"
-                      >
-                        {isShifting ? 'Shifting Schedule...' : 'Declare Holiday & Shift Schedule'}
-                      </button>
-                    </form>
                   </div>
 
                   <div className={cn(
@@ -2120,7 +2335,8 @@ export default function App() {
                     </div>
                   </section>
                 </div>
-              )}
+              )
+              }
             </div>
           )
         }
@@ -2227,7 +2443,82 @@ export default function App() {
         }
       </main >
 
-      <footer className="max-w-5xl mx-auto px-6 py-12 border-t border-black/5 flex flex-col md:flex-row justify-between items-center gap-8">
+      <AnimatePresence>
+        {isRescheduleModalOpen && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/60 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className={cn(
+                "w-full max-w-md p-8 md:p-12 rounded-[48px] border shadow-2xl relative",
+                isDarkMode ? "bg-black border-white/10" : "bg-white border-black/5"
+              )}
+            >
+              <button
+                onClick={() => setIsRescheduleModalOpen(false)}
+                className="absolute top-8 right-8 p-2 rounded-xl hover:bg-black/5"
+              >
+                <X className="w-5 h-5 opacity-40" />
+              </button>
+
+              <div className="space-y-8">
+                <div className="text-center space-y-2">
+                  <h3 className="text-2xl font-serif font-medium">Reschedule Meeting</h3>
+                  <p className="text-[10px] uppercase tracking-widest font-bold opacity-30">Shift subsequent meetings</p>
+                </div>
+
+                <form onSubmit={handleReschedule} className="space-y-6">
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <label className="text-[10px] uppercase tracking-widest font-bold opacity-40 ml-4">Source Date</label>
+                      <input
+                        type="date"
+                        readOnly
+                        value={rescheduleForm.sourceDate}
+                        className={cn(
+                          "w-full px-6 py-4 rounded-3xl border opacity-50 cursor-not-allowed",
+                          isDarkMode ? "bg-white/5 border-white/10" : "bg-[#F5F5F0] border-black/5"
+                        )}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-[10px] uppercase tracking-widest font-bold opacity-40 ml-4">New Target Date</label>
+                      <input
+                        type="date"
+                        required
+                        value={rescheduleForm.targetDate}
+                        onChange={(e) => setRescheduleForm(prev => ({ ...prev, targetDate: e.target.value }))}
+                        className={cn(
+                          "w-full px-6 py-4 rounded-3xl border transition-all outline-none focus:ring-2 ring-[#5A5A40]/20",
+                          isDarkMode ? "bg-black/40 border-white/10 text-white" : "bg-[#F5F5F0] border-black/5 text-black"
+                        )}
+                      />
+                      <p className="text-[9px] italic opacity-40 ml-4">
+                        Pick an earlier date to shift BACK (e.g. from Monday to Saturday).
+                        Pick a later date to shift FORWARD.
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={isRescheduling || !rescheduleForm.targetDate}
+                    className="w-full bg-[#5A5A40] text-white py-6 rounded-3xl font-bold text-sm tracking-widest uppercase hover:bg-[#4A4A30] transition-all shadow-lg shadow-[#5A5A40]/20 flex items-center justify-center gap-2"
+                  >
+                    {isRescheduling ? <RefreshCw className="w-4 h-4 animate-spin" /> : <CalendarIcon className="w-4 h-4" />}
+                    {isRescheduling ? 'Rescheduling...' : 'Confirm Reschedule'}
+                  </button>
+                </form>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      <footer
+        className="max-w-5xl mx-auto px-6 py-12 border-t border-black/5 flex flex-col md:flex-row justify-between items-center gap-8">
         <div className="flex items-center gap-2">
           <div className="w-2 h-2 rounded-full bg-[#5A5A40]" />
           <span className="text-[10px] uppercase tracking-widest font-bold opacity-40 text-center md:text-left">
