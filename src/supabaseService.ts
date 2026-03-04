@@ -277,6 +277,14 @@ export const supabaseService = {
         if (error) throw error;
     },
 
+    async deleteQuery(id: number) {
+        const { error } = await supabase
+            .from('queries')
+            .delete()
+            .eq('id', id);
+        if (error) throw error;
+    },
+
     async hasUndo() {
         const { count, error } = await supabase
             .from('schedule_history')

@@ -349,6 +349,17 @@ export default function App() {
     }
   };
 
+  const deleteQuery = async (id: number) => {
+    if (!confirm('Are you sure you want to permanently delete this query?')) return;
+    try {
+      await supabaseService.deleteQuery(id);
+      fetchQueries();
+    } catch (error) {
+      console.error('Error deleting query:', error);
+      alert('Failed to delete query.');
+    }
+  };
+
   const generateSchedule = async (startDate?: string) => {
     // Only set loading if not already in a loading sequence
     const wasLoading = loading;
@@ -2255,14 +2266,22 @@ export default function App() {
                             <p className="text-sm opacity-60 leading-relaxed">{q.message}</p>
                             <div className="flex justify-between items-center pt-4 border-t border-black/5">
                               <span className="text-[10px] font-mono opacity-30">{q.date}</span>
-                              {q.status !== 'resolved' && (
+                              <div className="flex gap-4">
+                                {q.status !== 'resolved' && (
+                                  <button
+                                    onClick={() => resolveQuery(q.id)}
+                                    className="text-[10px] font-bold uppercase tracking-widest text-emerald-600 hover:underline"
+                                  >
+                                    Mark as Resolved
+                                  </button>
+                                )}
                                 <button
-                                  onClick={() => resolveQuery(q.id)}
-                                  className="text-[10px] font-bold uppercase tracking-widest text-[#5A5A40] hover:underline"
+                                  onClick={() => deleteQuery(q.id)}
+                                  className="text-[10px] font-bold uppercase tracking-widest text-red-500 hover:underline"
                                 >
-                                  Mark as Resolved
+                                  Delete
                                 </button>
-                              )}
+                              </div>
                             </div>
                           </div>
                         ))}
