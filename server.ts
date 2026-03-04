@@ -45,7 +45,7 @@ const membersList = [
   { rollNo: "25UEC062", name: "MOHAMADYUNUS.R" },
   { rollNo: "25UEC064", name: "PRIYADHARSHINI.K" },
   { rollNo: "25UEC066", name: "HARIHARAN.S" },
-  { rollNo: "25UEC067", name: "YETHEESHWAR.B.R" },
+  { rollNo: "25UEC067", name: "YATHEESHWAR.B.R" },
   { rollNo: "25UEC068", name: "LATHIKA.S" },
   { rollNo: "25UEC069", name: "DEVIPRIYA.T" },
   { rollNo: "25UEC074", name: "SANTHOSHKANNA.S" },
@@ -57,7 +57,7 @@ const membersList = [
   { rollNo: "25UEC086", name: "SHRUTI.K" },
   { rollNo: "25UEC089", name: "MATTHEW PAULS.A" },
   { rollNo: "25UEC092", name: "GURU VIGNESHWARAN.S" },
-  { rollNo: "25UEC096", name: "BRINTHA.J" },
+  { rollNo: "25UEC096", name: "BIRUNTHA.J" },
   { rollNo: "25UEC102", name: "MAHALAKSHMI.G" },
   { rollNo: "25UEC103", name: "UMA MAHESWARI.M" },
   { rollNo: "25UEC107", name: "YOGESH.K" },
@@ -83,16 +83,16 @@ const ROLES_LIST = [
 const FEB_SCHEDULE_DATA: Record<string, string[]> = {
   "2026-02-11": ["NAVANEETHA KRISHNAN.R", "ALLEN VICTOR.A", "HARSHITHAA SHREE.R", "KARTHICK PANDIAN.M", "KABIL VISHWA.TM", "HARI PRASATH.G", "SHARMILA.J", "HEMA VARSHINI.A", "HARSHINI.S", "KARTHIKEYAN.P", "DHARUNYA SHREE.G", "HIBSA FARITH.S.H", "DHAKSHANA.K", "ABISHEK.S", "HARSHINI.S.D"],
   "2026-02-12": ["HARICHARAN.S.P", "SAKTHI DIVASHKAR.M", "HARISH KARTHICK.R", "BALAJI.N", "NITESH VARMAN.M", "MAHENDRAN.N.P", "VENKATAPRIYA.S", "YUVASRI.K", "SUJITHA.J.T", "PADMASINDUJA.K", "LAKSHMI.L", "BOOPESH.K.V", "SENTHAMILSELVI.M", "KHAN MOHAMAD.S", "SWETHA ROSE.S"],
-  "2026-02-13": ["VIMAL.V.S", "RAHUL.P", "MOHAMADYUNUS.R", "PRIYADHARSHINI.K", "HARIHARAN.S", "YETHEESHWAR.B.R", "LATHIKA.S", "DEVIPRIYA.T", "SANTHOSHKANNA.S", "ABISHEK MILTON.T", "DIVYESH SANKAR.N.K", "GOKUL.S", "YOGAHARANI.A", "MAGATHI.M", "SHRUTI.K"],
-  "2026-02-16": ["MATTHEW PAULS.A", "GURU VIGNESHWARAN.S", "BRINTHA.J", "MAHALAKSHMI.G", "UMA MAHESWARI.M", "YOGESH.K", "GAUTHAM.S", "SRIMATHI.B", "PRINCE VICTOR.A", "PRADHIKSHA.M.P", "DINESH PANDI.R", "YAZHINI.M", "HARSHVARDHAN.S", "MOHAMAD SALMANKHAN.N", "DEEPIKASRI.R.K"],
+  "2026-02-13": ["VIMAL.V.S", "RAHUL.P", "MOHAMADYUNUS.R", "PRIYADHARSHINI.K", "HARIHARAN.S", "YATHEESHWAR.B.R", "LATHIKA.S", "DEVIPRIYA.T", "SANTHOSHKANNA.S", "ABISHEK MILTON.T", "DIVYESH SANKAR.N.K", "GOKUL.S", "YOGAHARANI.A", "MAGATHI.M", "SHRUTI.K"],
+  "2026-02-16": ["MATTHEW PAULS.A", "GURU VIGNESHWARAN.S", "BIRUNTHA.J", "MAHALAKSHMI.G", "UMA MAHESWARI.M", "YOGESH.K", "GAUTHAM.S", "SRIMATHI.B", "PRINCE VICTOR.A", "PRADHIKSHA.M.P", "DINESH PANDI.R", "YAZHINI.M", "HARSHVARDHAN.S", "MOHAMAD SALMANKHAN.N", "DEEPIKASRI.R.K"],
   "2026-02-17": ["DHAKSHANA.K", "ABISHEK.S", "HARSHINI.S.D", "KARTHIKEYAN.P", "DHARUNYA SHREE.G", "HIBSA FARITH.S.H", "NAVANEETHA KRISHNAN.R", "ALLEN VICTOR.A", "HARSHITHAA SHREE.R", "SHARMILA.J", "HEMA VARSHINI.A", "HARSHINI.S", "KARTHICK PANDIAN.M", "KABIL VISHWA.TM", "HARI PRASATH.G"],
   "2026-02-18": ["SENTHAMILSELVI.M", "KHAN MOHAMAD.S", "SWETHA ROSE.S", "PADMASINDUJA.K", "LAKSHMI.L", "BOOPESH.K.V", "HARICHARAN.S.P", "SAKTHI DIVASHKAR.M", "HARISH KARTHICK.R", "VENKATAPRIYA.S", "YUVASRI.K", "SUJITHA.J.T", "BALAJI.N", "NITESH VARMAN.M", "MAHENDRAN.N.P"],
-  "2026-02-19": ["YOGAHARANI.A", "MAGATHI.M", "SHRUTI.K", "ABISHEK MILTON.T", "DIVYESH SANKAR.N.K", "GOKUL.S", "VIMAL.V.S", "RAHUL.P", "MOHAMADYUNUS.R", "LATHIKA.S", "DEVIPRIYA.T", "SANTHOSHKANNA.S", "PRIYADHARSHINI.K", "HARIHARAN.S", "YETHEESHWAR.B.R"],
-  "2026-02-20": ["HARSHVARDHAN.S", "MOHAMAD SALMANKHAN.N", "DEEPIKASRI.R.K", "PRADHIKSHA.M.P", "DINESH PANDI.R", "YAZHINI.M", "MATTHEW PAULS.A", "GURU VIGNESHWARAN.S", "BRINTHA.J", "GAUTHAM.S", "SRIMATHI.B", "PRINCE VICTOR.A", "MAHALAKSHMI.G", "UMA MAHESWARI.M", "YOGESH.K"],
+  "2026-02-19": ["YOGAHARANI.A", "MAGATHI.M", "SHRUTI.K", "ABISHEK MILTON.T", "DIVYESH SANKAR.N.K", "GOKUL.S", "VIMAL.V.S", "RAHUL.P", "MOHAMADYUNUS.R", "LATHIKA.S", "DEVIPRIYA.T", "SANTHOSHKANNA.S", "PRIYADHARSHINI.K", "HARIHARAN.S", "YATHEESHWAR.B.R"],
+  "2026-02-20": ["HARSHVARDHAN.S", "MOHAMAD SALMANKHAN.N", "DEEPIKASRI.R.K", "PRADHIKSHA.M.P", "DINESH PANDI.R", "YAZHINI.M", "MATTHEW PAULS.A", "GURU VIGNESHWARAN.S", "BIRUNTHA.J", "GAUTHAM.S", "SRIMATHI.B", "PRINCE VICTOR.A", "MAHALAKSHMI.G", "UMA MAHESWARI.M", "YOGESH.K"],
   "2026-02-21": ["KARTHICK PANDIAN.M", "KABIL VISHWA.TM", "HARI PRASATH.G", "NAVANEETHA KRISHNAN.R", "ALLEN VICTOR.A", "HARSHITHAA SHREE.R", "KARTHIKEYAN.P", "DHARUNYA SHREE.G", "HIBSA FARITH.S.H", "DHAKSHANA.K", "ABISHEK.S", "HARSHINI.S.D", "SHARMILA.J", "HEMA VARSHINI.A", "HARSHINI.S"],
   "2026-02-24": ["BALAJI.N", "NITESH VARMAN.M", "MAHENDRAN.N.P", "HARICHARAN.S.P", "SAKTHI DIVASHKAR.M", "HARISH KARTHICK.R", "PADMASINDUJA.K", "LAKSHMI.L", "BOOPESH.K.V", "SENTHAMILSELVI.M", "KHAN MOHAMAD.S", "SWETHA ROSE.S", "VENKATAPRIYA.S", "YUVASRI.K", "SUJITHA.J.T"],
-  "2026-02-25": ["PRIYADHARSHINI.K", "HARIHARAN.S", "YETHEESHWAR.B.R", "VIMAL.V.S", "RAHUL.P", "MOHAMADYUNUS.R", "ABISHEK MILTON.T", "DIVYESH SANKAR.N.K", "GOKUL.S", "YOGAHARANI.A", "MAGATHI.M", "SHRUTI.K", "LATHIKA.S", "DEVIPRIYA.T", "SANTHOSHKANNA.S"],
-  "2026-02-26": ["MAHALAKSHMI.G", "UMA MAHESWARI.M", "YOGESH.K", "MATTHEW PAULS.A", "GURU VIGNESHWARAN.S", "BRINTHA.J", "PRADHIKSHA.M.P", "DINESH PANDI.R", "YAZHINI.M", "GAUTHAM.S", "SRIMATHI.B", "PRINCE VICTOR.A", "HARSHVARDHAN.S", "MOHAMAD SALMANKHAN.N", "DEEPIKASRI.R.K"],
+  "2026-02-25": ["PRIYADHARSHINI.K", "HARIHARAN.S", "YATHEESHWAR.B.R", "VIMAL.V.S", "RAHUL.P", "MOHAMADYUNUS.R", "ABISHEK MILTON.T", "DIVYESH SANKAR.N.K", "GOKUL.S", "YOGAHARANI.A", "MAGATHI.M", "SHRUTI.K", "LATHIKA.S", "DEVIPRIYA.T", "SANTHOSHKANNA.S"],
+  "2026-02-26": ["MAHALAKSHMI.G", "UMA MAHESWARI.M", "YOGESH.K", "MATTHEW PAULS.A", "GURU VIGNESHWARAN.S", "BIRUNTHA.J", "PRADHIKSHA.M.P", "DINESH PANDI.R", "YAZHINI.M", "GAUTHAM.S", "SRIMATHI.B", "PRINCE VICTOR.A", "HARSHVARDHAN.S", "MOHAMAD SALMANKHAN.N", "DEEPIKASRI.R.K"],
   "2026-02-27": ["SHARMILA.J", "HEMA VARSHINI.A", "HARSHINI.S", "DHAKSHANA.K", "ABISHEK.S", "HARSHINI.S.D", "KARTHIKEYAN.P", "DHARUNYA SHREE.G", "HIBSA FARITH.S.H", "HARSHITHAA SHREE.R", "DEEPIKASRI.R.K", "GAUTHAM.S", "SANTHOSHKANNA.S", "PRINCE VICTOR.A", "HIBSA FARITH.S.H"]
 };
 
@@ -101,7 +101,7 @@ let db: any;
 async function startServer() {
   try {
     db = new Database("toastmasters.db");
-    
+
     db.exec(`
       CREATE TABLE IF NOT EXISTS members (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -181,7 +181,7 @@ async function startServer() {
         const photoUrl = `https://picsum.photos/seed/${m.rollNo}/200/200`;
         insertMember.run(m.rollNo, m.name, i + 1, photoUrl);
       });
-    } catch (e) {}
+    } catch (e) { }
 
     // Seed announcements
     try {
@@ -190,7 +190,7 @@ async function startServer() {
         const insertAnnouncement = db.prepare("INSERT INTO announcements (title, content, date, type) VALUES (?, ?, ?, ?)");
         insertAnnouncement.run("Welcome to ECE_B Toastmasters", "We are excited to launch our new digital platform.", format(new Date(), "yyyy-MM-dd"), "info");
       }
-    } catch (e) {}
+    } catch (e) { }
 
     // Seed holidays
     try {
@@ -232,7 +232,7 @@ async function startServer() {
       ];
       const insertHoliday = db.prepare("INSERT OR IGNORE INTO holidays (date, reason) VALUES (?, ?)");
       holidays.forEach(h => insertHoliday.run(h.date, h.reason));
-    } catch (e) {}
+    } catch (e) { }
 
     // Seed icebreaker bank
     try {
@@ -247,14 +247,14 @@ async function startServer() {
         ];
         defaultGames.forEach(g => insertGame.run(g.name, g.description));
       }
-    } catch (e) {}
+    } catch (e) { }
 
     // Seed February schedule exactly from screenshot
     try {
       db.prepare("DELETE FROM schedule").run();
       const members = db.prepare("SELECT id, name, attendance_order FROM members").all() as any[];
       const insertSched = db.prepare("INSERT INTO schedule (date, roleId, originalMemberId, currentMemberId, status) VALUES (?, ?, ?, ?, 'completed')");
-      
+
       const dates = Object.keys(FEB_SCHEDULE_DATA).sort();
       dates.forEach((date, dayIdx) => {
         const names = FEB_SCHEDULE_DATA[date];
@@ -276,7 +276,7 @@ async function startServer() {
           // Batch 1 (16-30) -> Backup Batch 2
           else if (order >= 16 && order <= 30) backupNames = ["VIMAL.V.S", "RAHUL.P", "MOHAMADYUNUS.R"];
           // Batch 2 (31-45) -> Backup Batch 3
-          else if (order >= 31 && order <= 45) backupNames = ["MATTHEW PAULS.A", "GURU VIGNESHWARAN.S", "BRINTHA.J"];
+          else if (order >= 31 && order <= 45) backupNames = ["MATTHEW PAULS.A", "GURU VIGNESHWARAN.S", "BIRUNTHA.J"];
           // Batch 3 (46-60) -> Backup Batch 4
           else if (order >= 46 && order <= 60) backupNames = ["NAVANEETHA KRISHNAN.R", "ALLEN VICTOR.A", "HARSHITHAA SHREE.R"];
         }
@@ -288,7 +288,7 @@ async function startServer() {
           }
         });
       });
-    } catch (e) {}
+    } catch (e) { }
 
   } catch (err) {
     console.error("Database initialization failed, using in-memory DB:", err);
@@ -415,11 +415,11 @@ async function startServer() {
   app.post("/api/shift-schedule", (req, res) => {
     try {
       const { startDate, reason } = req.body;
-      
+
       // 1. Capture current state for undo
       const originalSchedule = db.prepare("SELECT * FROM schedule WHERE date >= ?").all(startDate);
       const originalIcebreakers = db.prepare("SELECT * FROM daily_icebreaker WHERE date >= ?").all(startDate);
-      
+
       db.prepare("INSERT INTO schedule_history (operation_type, original_schedule, original_icebreakers, holiday_date) VALUES (?, ?, ?, ?)")
         .run('shift', JSON.stringify(originalSchedule), JSON.stringify(originalIcebreakers), startDate);
 
@@ -427,8 +427,8 @@ async function startServer() {
       db.prepare("INSERT OR IGNORE INTO holidays (date, reason) VALUES (?, ?)").run(startDate, reason || "Unexpected Holiday");
 
       // 3. Get all unique dates from schedule >= startDate in DESCENDING order
-      const dates = db.prepare("SELECT DISTINCT date FROM schedule WHERE date >= ? ORDER BY date DESC").all(startDate) as {date: string}[];
-      
+      const dates = db.prepare("SELECT DISTINCT date FROM schedule WHERE date >= ? ORDER BY date DESC").all(startDate) as { date: string }[];
+
       const holidayDates = db.prepare("SELECT date FROM holidays").all().map((h: any) => h.date);
 
       for (const d of dates) {
@@ -437,7 +437,7 @@ async function startServer() {
           nextDate = addDays(nextDate, 1);
         }
         const nextDateStr = format(nextDate, "yyyy-MM-dd");
-        
+
         // Update schedule
         db.prepare("UPDATE schedule SET date = ? WHERE date = ?").run(nextDateStr, d.date);
         // Update icebreakers
@@ -500,21 +500,21 @@ async function startServer() {
       const { startDate } = req.body;
       let currentDate = parseISO(startDate);
       const members = db.prepare("SELECT id FROM members ORDER BY attendance_order").all();
-      
+
       if (members.length === 0) {
         return res.status(400).json({ error: "No members found to generate schedule" });
       }
-      
+
       const holidays = db.prepare("SELECT date FROM holidays").all().map((h: any) => h.date);
-      
+
       // Determine the next day number
       const existingDays = db.prepare("SELECT DISTINCT date FROM schedule ORDER BY date").all();
       let dayCount = existingDays.length;
-      
+
       const isStartOfMonth = currentDate.getDate() === 1;
       const daysToGenerate = isStartOfMonth ? 31 : 12;
       const targetMonth = currentDate.getMonth();
-      
+
       for (let i = 0; i < daysToGenerate; i++) {
         if (isStartOfMonth && currentDate.getMonth() !== targetMonth) break;
 
@@ -522,17 +522,17 @@ async function startServer() {
           currentDate = addDays(currentDate, 1);
           if (isStartOfMonth && currentDate.getMonth() !== targetMonth) break;
         }
-        
+
         if (isStartOfMonth && currentDate.getMonth() !== targetMonth) break;
 
         const dateStr = format(currentDate, "yyyy-MM-dd");
-        
+
         const exists = db.prepare("SELECT count(*) as count FROM schedule WHERE date = ?").get(dateStr) as { count: number };
         if (exists.count === 0) {
           // Batch and Cycle logic
           const batchIdx = dayCount % 4;
           const cycleIdx = Math.floor(dayCount / 4);
-          
+
           // Permutations for the 5 sets of roles to avoid repetition
           const setPerms = [
             [0, 1, 2, 3, 4],
@@ -541,16 +541,16 @@ async function startServer() {
             [2, 4, 1, 0, 3],
             [3, 2, 4, 1, 0]
           ];
-          
+
           const currentPerm = setPerms[cycleIdx % 5];
           const batchMembers = members.slice(batchIdx * 15, (batchIdx + 1) * 15);
-          
+
           // If we don't have enough members in the last batch, just use linear rotation for safety
           if (batchMembers.length < 15) {
-             ROLES_LIST.forEach((roleId, rIdx) => {
-                const member = members[(dayCount * 15 + rIdx) % members.length];
-                db.prepare("INSERT INTO schedule (date, roleId, originalMemberId, currentMemberId) VALUES (?, ?, ?, ?)").run(dateStr, roleId, member.id, member.id);
-             });
+            ROLES_LIST.forEach((roleId, rIdx) => {
+              const member = members[(dayCount * 15 + rIdx) % members.length];
+              db.prepare("INSERT INTO schedule (date, roleId, originalMemberId, currentMemberId) VALUES (?, ?, ?, ?)").run(dateStr, roleId, member.id, member.id);
+            });
           } else {
             const roleGroups = [
               [0, 1, 2],    // TMOD, GE, TTM
@@ -559,7 +559,7 @@ async function startServer() {
               [9, 10, 11],  // Evaluators
               [12, 13, 14]  // TT Speakers
             ];
-            
+
             roleGroups.forEach((roleIndices, setIdx) => {
               const memberSetIdx = currentPerm[setIdx];
               roleIndices.forEach((roleIdx, i) => {
@@ -578,10 +578,10 @@ async function startServer() {
           }
           dayCount++;
         }
-        
+
         currentDate = addDays(currentDate, 1);
       }
-      
+
       res.json({ success: true });
     } catch (e) {
       res.status(500).json({ error: e.message });
@@ -593,7 +593,7 @@ async function startServer() {
       const { scheduleId } = req.body;
       const entry = db.prepare("SELECT * FROM schedule WHERE id = ?").get(scheduleId) as any;
       if (!entry) return res.status(404).json({ error: "Entry not found" });
-      
+
       const today = new Date().toISOString().split('T')[0];
       if (entry.date < today) {
         return res.status(400).json({ error: "Cannot modify past attendance" });
@@ -607,7 +607,7 @@ async function startServer() {
 
       // Find available backups for this date in order (BACKUP_1, BACKUP_2, BACKUP_3)
       const backups = db.prepare("SELECT * FROM schedule WHERE date = ? AND roleId IN ('BACKUP_1', 'BACKUP_2', 'BACKUP_3') ORDER BY roleId ASC").all(entry.date) as any[];
-      
+
       let availableBackup = null;
       for (const b of backups) {
         // A backup is available if their status is not 'absent'
@@ -616,7 +616,7 @@ async function startServer() {
           break;
         }
       }
-      
+
       const defaultStatus = entry.date < today ? 'completed' : 'scheduled';
 
       if (availableBackup) {
@@ -626,7 +626,7 @@ async function startServer() {
         // 1. Assign backup to this role for today
         db.prepare("UPDATE schedule SET currentMemberId = ?, isSubstitution = 1, replacedById = ?, status = ? WHERE id = ?")
           .run(backupMemberId, absenteeMemberId, defaultStatus, scheduleId);
-        
+
         // 2. Mark the backup's own placeholder slot as 'absent' so they aren't picked again today
         db.prepare("UPDATE schedule SET status = 'absent' WHERE id = ?").run(availableBackup.id);
 
@@ -643,7 +643,7 @@ async function startServer() {
         // If no backup found, the role remains vacant/absent.
         db.prepare("UPDATE schedule SET status = 'absent' WHERE id = ?").run(scheduleId);
       }
-      
+
       res.json({ success: true });
     } catch (e) {
       res.status(500).json({ error: e.message });
@@ -654,15 +654,15 @@ async function startServer() {
     try {
       const { month, year } = req.body;
       if (!month || !year) return res.status(400).json({ error: "Month and Year are required" });
-      
+
       const monthStr = month.toString().padStart(2, '0');
       const datePattern = `${year}-${monthStr}-%`;
-      
+
       // We only delete scheduled entries, not completed ones to preserve history
       db.prepare("DELETE FROM schedule WHERE date LIKE ? AND status = 'scheduled'").run(datePattern);
       db.prepare("DELETE FROM daily_icebreaker WHERE date LIKE ?").run(datePattern);
       db.prepare("DELETE FROM daily_theme WHERE date LIKE ?").run(datePattern);
-      
+
       res.json({ success: true });
     } catch (e) {
       res.status(500).json({ error: e.message });
@@ -674,7 +674,7 @@ async function startServer() {
       const { scheduleId } = req.body;
       const entry = db.prepare("SELECT * FROM schedule WHERE id = ?").get(scheduleId) as any;
       if (!entry) return res.status(404).json({ error: "Entry not found" });
-      
+
       const today = new Date().toISOString().split('T')[0];
       if (entry.date < today) {
         return res.status(400).json({ error: "Cannot modify past attendance" });
@@ -696,15 +696,15 @@ async function startServer() {
         // 2. Revert the absentee's role on the next day back to the backup
         const nextMeeting = db.prepare("SELECT date FROM schedule WHERE date > ? ORDER BY date ASC LIMIT 1").get(entry.date) as { date: string };
         if (nextMeeting) {
-           db.prepare("UPDATE schedule SET currentMemberId = originalMemberId, isSubstitution = 0, replacedById = NULL WHERE date = ? AND originalMemberId = ?")
-             .run(nextMeeting.date, backupMemberId);
+          db.prepare("UPDATE schedule SET currentMemberId = originalMemberId, isSubstitution = 0, replacedById = NULL WHERE date = ? AND originalMemberId = ?")
+            .run(nextMeeting.date, backupMemberId);
         }
       }
-      
+
       // Revert today's role to original member
       db.prepare("UPDATE schedule SET currentMemberId = originalMemberId, isSubstitution = 0, replacedById = NULL, status = ? WHERE id = ?")
         .run(newStatus, scheduleId);
-      
+
       res.json({ success: true });
     } catch (e) {
       res.status(500).json({ error: e.message });
