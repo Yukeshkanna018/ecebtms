@@ -48,6 +48,7 @@ export default function App() {
   const [editingEntryId, setEditingEntryId] = useState<number | null>(null);
   const [tempMemberId, setTempMemberId] = useState<number | null>(null);
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loginError, setLoginError] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -579,9 +580,10 @@ export default function App() {
 
   const handleLogin = (e: FormEvent) => {
     e.preventDefault();
-    if (password === 'ecebtms@123321') {
+    if (username === 'admin321' && password === 'ecebtms@123321') {
       setIsAdminLoggedIn(true);
       setLoginError(false);
+      setUsername('');
       setPassword('');
     } else {
       setLoginError(true);
@@ -1858,6 +1860,19 @@ export default function App() {
                     <p className="text-sm opacity-40">Enter credentials to manage the club</p>
                   </div>
                   <form onSubmit={handleLogin} className="space-y-6">
+                    <div className="space-y-2">
+                      <label className="text-[10px] uppercase tracking-widest font-bold opacity-40 ml-4">Username</label>
+                      <input
+                        type="text"
+                        value={username}
+                        onChange={(e) => setUsername(e.target.value)}
+                        placeholder="admin321"
+                        className={cn(
+                          "w-full px-6 py-4 rounded-3xl border transition-all outline-none focus:ring-2 ring-[#5A5A40]/20",
+                          isDarkMode ? "bg-black/40 border-white/10 text-white" : "bg-[#F5F5F0] border-black/5 text-black"
+                        )}
+                      />
+                    </div>
                     <div className="space-y-2">
                       <label className="text-[10px] uppercase tracking-widest font-bold opacity-40 ml-4">Password</label>
                       <input
