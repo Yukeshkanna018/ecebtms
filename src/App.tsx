@@ -1866,7 +1866,7 @@ export default function App() {
                         type="text"
                         value={username}
                         onChange={(e) => setUsername(e.target.value)}
-                        placeholder="admin321"
+                        placeholder="Enter username"
                         className={cn(
                           "w-full px-6 py-4 rounded-3xl border transition-all outline-none focus:ring-2 ring-[#5A5A40]/20",
                           isDarkMode ? "bg-black/40 border-white/10 text-white" : "bg-[#F5F5F0] border-black/5 text-black"
