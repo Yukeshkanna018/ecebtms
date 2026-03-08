@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" aria-label="ECE B Toastmasters Logo">
+  <!-- Outer circle ring -->
+  <circle cx="24" cy="24" r="22" stroke="#5A5A40" stroke-width="1.5" fill="none" opacity="0.25"/>
+
+  <!-- Microphone body -->
+  <rect x="19" y="8" width="10" height="16" rx="5" fill="#5A5A40"/>
+
+  <!-- Microphone arc (stand boom) -->
+  <path d="M14 22 C14 30 34 30 34 22" stroke="#5A5A40" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+
+  <!-- Stand vertical line -->
+  <line x1="24" y1="30" x2="24" y2="37" stroke="#5A5A40" stroke-width="1.8" stroke-linecap="round"/>
+
+  <!-- Podium base -->
+  <path d="M16 37 L32 37 L30 42 L18 42 Z" fill="#5A5A40" opacity="0.9"/>
+
+  <!-- Mic grille lines -->
+  <line x1="21" y1="13" x2="27" y2="13" stroke="white" stroke-width="1" stroke-linecap="round" opacity="0.6"/>
+  <line x1="21" y1="17" x2="27" y2="17" stroke="white" stroke-width="1" stroke-linecap="round" opacity="0.6"/>
+  <line x1="21" y1="21" x2="27" y2="21" stroke="white" stroke-width="1" stroke-linecap="round" opacity="0.6"/>
+</svg>
