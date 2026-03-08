@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://ece-b-toastmasters-scheduler.vercel.app/sitemap.xml
+Sitemap: https://ecebtms.pages.dev/sitemap.xml
