@@ -695,12 +695,6 @@ export default function App() {
         <div className="max-w-5xl mx-auto px-6 py-4 md:py-8 flex items-center justify-between gap-6">
           <div className="flex flex-col">
             <div className="flex items-center gap-2 mb-1 md:mb-2">
-              {/* Logo inline with badge */}
-              <img
-                src="/logo.svg"
-                alt="ECE B Toastmasters Logo"
-                className="w-4 h-4 md:w-5 md:h-5 flex-shrink-0"
-              />
               <span className="text-[8px] md:text-[10px] uppercase tracking-[0.2em] font-semibold text-[#5A5A40] bg-[#5A5A40]/10 px-2 py-0.5 rounded-full">
                 ECE_B Toastmasters
               </span>
