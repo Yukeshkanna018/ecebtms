@@ -693,23 +693,21 @@ export default function App() {
         isDarkMode ? "bg-black/40 border-white/5" : "bg-white/50 border-black/5"
       )}>
         <div className="max-w-5xl mx-auto px-6 py-4 md:py-8 flex items-center justify-between gap-6">
-          <div className="flex items-center gap-3 md:gap-4">
-            {/* Logo */}
-            <img
-              src="/logo.svg"
-              alt="ECE B Toastmasters Logo"
-              className="w-10 h-10 md:w-16 md:h-16 flex-shrink-0"
-            />
-            <div className="flex flex-col">
-              <div className="flex items-center gap-2 mb-1 md:mb-2">
-                <span className="text-[8px] md:text-[10px] uppercase tracking-[0.2em] font-semibold text-[#5A5A40] bg-[#5A5A40]/10 px-2 py-0.5 rounded-full">
-                  ECE_B Toastmasters
-                </span>
-              </div>
-              <h1 className="text-2xl md:text-6xl font-serif font-light tracking-tighter leading-none">
-                The <span className="italic font-normal">Podium</span>
-              </h1>
+          <div className="flex flex-col">
+            <div className="flex items-center gap-2 mb-1 md:mb-2">
+              {/* Logo inline with badge */}
+              <img
+                src="/logo.svg"
+                alt="ECE B Toastmasters Logo"
+                className="w-4 h-4 md:w-5 md:h-5 flex-shrink-0"
+              />
+              <span className="text-[8px] md:text-[10px] uppercase tracking-[0.2em] font-semibold text-[#5A5A40] bg-[#5A5A40]/10 px-2 py-0.5 rounded-full">
+                ECE_B Toastmasters
+              </span>
             </div>
+            <h1 className="text-2xl md:text-6xl font-serif font-light tracking-tighter leading-none">
+              The <span className="italic font-normal">Podium</span>
+            </h1>
           </div>
 
           <div className="flex items-center gap-4 md:gap-8">
