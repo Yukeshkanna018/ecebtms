@@ -78,7 +78,67 @@
 </head>
 
 <body>
-  <div id="root"></div>
+  <!-- SEO pre-render shell: read by Google on first crawl, replaced by React on load -->
+  <style>
+    #seo-shell {
+      display: none
+    }
+  </style>
+  <div id="root">
+    <div id="seo-shell" aria-hidden="true">
+      <header>
+        <h1>ECE B Toastmasters — The Podium</h1>
+        <nav>
+          <a href="/">Home</a>
+          <a href="/#schedule">Schedule</a>
+          <a href="/#members">Members</a>
+          <a href="/#framework">Framework</a>
+          <a href="/#contact">Contact</a>
+          <a href="/#icebreaker">Icebreaker</a>
+        </nav>
+      </header>
+      <main>
+        <section>
+          <h2>Crafting Confident Voices — ECE B Toastmasters Club</h2>
+          <p>A sanctuary for the bold, a stage for the aspiring. ECE B Toastmasters is a student-run public speaking and
+            leadership club established in 2026, part of the official Toastmasters International network.</p>
+          <p>We meet regularly to practice communication skills, take on structured speaking roles, and grow as
+            confident leaders. Our platform helps members view and manage their meeting schedule, track attendance, and
+            stay connected.</p>
+        </section>
+        <section>
+          <h2>Our Mission</h2>
+          <p>To provide a mutually supportive and positive learning environment in which every individual member has the
+            opportunity to develop oral communication and leadership skills, which foster self-confidence and personal
+            growth.</p>
+        </section>
+        <section>
+          <h2>Our Vision</h2>
+          <p>To be the first-choice provider of dynamic, high-value, experiential communication and leadership skills
+            development.</p>
+        </section>
+        <section>
+          <h2>Club at a Glance</h2>
+          <ul>
+            <li>60 active member voices</li>
+            <li>15 structured speaking roles per meeting</li>
+            <li>Weekly meetings with role rotation and attendance tracking</li>
+            <li>Icebreaker games and themed sessions</li>
+          </ul>
+        </section>
+        <section>
+          <h2>Follow Us</h2>
+          <p>Stay connected with ECE B Toastmasters on Instagram: <a href="https://instagram.com/_tms_club_ece_b_"
+              target="_blank" rel="noopener noreferrer">@_tms_club_ece_b_</a></p>
+        </section>
+        <section>
+          <h2>Contact &amp; Support</h2>
+          <p>Have a question or suggestion? Use our Contact tab to submit queries directly to the club admin. We respond
+            to all messages within the next meeting cycle.</p>
+        </section>
+      </main>
+    </div>
+  </div>
   <script type="module" src="/src/main.tsx"></script>
 </body>
 
