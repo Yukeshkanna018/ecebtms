@@ -693,18 +693,15 @@ export default function App() {
         isDarkMode ? "bg-black/40 border-white/5" : "bg-white/50 border-black/5"
       )}>
         <div className="max-w-5xl mx-auto px-6 py-4 md:py-8 flex items-center justify-between gap-6">
-          <div className="flex items-center gap-4 md:gap-6">
-            <img src="/logo.png" alt="ECE B Toastmasters Logo" className="w-12 h-12 md:w-20 md:h-20 rounded-full shadow-sm object-cover" />
-            <div className="flex flex-col">
-              <div className="flex items-center gap-2 mb-1 md:mb-2">
-                <span className="text-[8px] md:text-[10px] uppercase tracking-[0.2em] font-semibold text-[#5A5A40] bg-[#5A5A40]/10 px-2 py-0.5 rounded-full">
-                  ECE_B Toastmasters
-                </span>
-              </div>
-              <h1 className="text-2xl md:text-6xl font-serif font-light tracking-tighter leading-none">
-                The <span className="italic font-normal">Podium</span>
-              </h1>
+          <div className="flex flex-col">
+            <div className="flex items-center gap-2 mb-1 md:mb-2">
+              <span className="text-[8px] md:text-[10px] uppercase tracking-[0.2em] font-semibold text-[#5A5A40] bg-[#5A5A40]/10 px-2 py-0.5 rounded-full">
+                ECE_B Toastmasters
+              </span>
             </div>
+            <h1 className="text-2xl md:text-6xl font-serif font-light tracking-tighter leading-none">
+              The <span className="italic font-normal">Podium</span>
+            </h1>
           </div>
 
           <div className="flex items-center gap-4 md:gap-8">
