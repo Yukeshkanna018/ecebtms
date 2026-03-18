@@ -1,0 +1,16 @@
+{
+  "short_name": "ECEB TMS",
+  "name": "ECE B Toastmasters Club",
+  "icons": [
+    {
+      "src": "/logo.png",
+      "sizes": "192x192 512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#0f1b2d",
+  "background_color": "#f5f5f0"
+}
