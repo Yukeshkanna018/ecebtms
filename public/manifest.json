@@ -3,13 +3,13 @@
   "name": "ECE B Toastmasters Club",
   "icons": [
     {
-      "src": "/logo.png?v=5",
+      "src": "/logo.png?v=6",
       "sizes": "192x192 512x512",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "/logo.png?v=5",
+      "src": "/logo.png?v=6",
       "sizes": "16x16 32x32 48x48",
       "type": "image/png"
     }

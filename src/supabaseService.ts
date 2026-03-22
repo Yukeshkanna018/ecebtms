@@ -643,9 +643,25 @@ export const supabaseService = {
             currentDate = addDays(currentDate, 1);
         }
 
+
         if (newEntries.length > 0) {
             await supabase.from('schedule').insert(newEntries);
         }
+    },
+
+    async generateMonthSchedule(month: string, year: string, holidayDates: string[]) {
+        // 1. Upsert all provided holidays into the holidays table
+        if (holidayDates.length > 0) {
+            const holidayRows = holidayDates.map(date => ({
+                date,
+                reason: 'Holiday (pre-set for month generation)'
+            }));
+            await supabase.from('holidays').upsert(holidayRows, { onConflict: 'date' });
+        }
+
+        // 2. Generate schedule starting from the 1st of the given month
+        const startDate = `${year}-${month.padStart(2, '0')}-01`;
+        await this.generateSchedule(startDate);
     },
 
     async shiftSchedule(startDate: string, reason: string) {

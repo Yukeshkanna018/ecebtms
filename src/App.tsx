@@ -84,6 +84,16 @@ export default function App() {
   const [isRescheduling, setIsRescheduling] = useState(false);
   const [rescheduleForm, setRescheduleForm] = useState({ sourceDate: '', targetDate: '' });
 
+  // Generate Month Schedule form state
+  const [generateMonthForm, setGenerateMonthForm] = useState({
+    month: format(startOfToday(), 'MM'),
+    year: format(startOfToday(), 'yyyy'),
+  });
+  const [pendingHolidayDates, setPendingHolidayDates] = useState<string[]>([]);
+  const [newHolidayDateInput, setNewHolidayDateInput] = useState('');
+  const [isGeneratingMonth, setIsGeneratingMonth] = useState(false);
+  const [generateMonthSuccess, setGenerateMonthSuccess] = useState(false);
+
   // Connectivity diagnostics
   const [isCheckingConnectivity, setIsCheckingConnectivity] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<'idle' | 'success' | 'blocked'>('idle');
@@ -376,6 +386,30 @@ export default function App() {
     } finally {
       isGeneratingRef.current = false;
       setIsGenerating(false);
+    }
+  };
+
+  const handleGenerateMonthSchedule = async (e: FormEvent) => {
+    e.preventDefault();
+    const monthName = format(parseISO(`${generateMonthForm.year}-${generateMonthForm.month}-01`), 'MMMM yyyy');
+    const holidayList = pendingHolidayDates.length > 0
+      ? `\n\nHolidays (no meetings on these dates):\n${pendingHolidayDates.join('\n')}`
+      : '';
+    if (!confirm(`Generate schedule for ${monthName}?${holidayList}`)) return;
+    setIsGeneratingMonth(true);
+    try {
+      await supabaseService.generateMonthSchedule(generateMonthForm.month, generateMonthForm.year, pendingHolidayDates);
+      await fetchData();
+      if (isAdminLoggedIn) await fetchHolidays();
+      setPendingHolidayDates([]);
+      setNewHolidayDateInput('');
+      setGenerateMonthSuccess(true);
+      setTimeout(() => setGenerateMonthSuccess(false), 4000);
+    } catch (error) {
+      console.error('Error generating month schedule:', error);
+      alert('Failed to generate schedule. Check console.');
+    } finally {
+      setIsGeneratingMonth(false);
     }
   };
 
@@ -2080,6 +2114,121 @@ export default function App() {
 
                   <hr className="opacity-10" />
 
+                  {/* Generate Month Schedule */}
+                  <div className={cn(
+                    "p-8 rounded-[40px] border space-y-6 relative overflow-hidden",
+                    isDarkMode ? "bg-white/5 border-white/10" : "bg-white border-black/5 shadow-sm"
+                  )}>
+                    <AnimatePresence>
+                      {generateMonthSuccess && (
+                        <motion.div
+                          initial={{ opacity: 0, y: -20 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -20 }}
+                          className="absolute inset-x-0 top-0 bg-emerald-500 text-white py-2 text-center text-[8px] uppercase tracking-widest font-bold z-10"
+                        >
+                          Schedule Generated Successfully!
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                    <div className="flex items-center gap-3">
+                      <CalendarIcon className="w-5 h-5 text-[#5A5A40]" />
+                      <h4 className="text-xs uppercase tracking-[0.2em] font-bold text-[#5A5A40]">Generate Month Schedule</h4>
+                    </div>
+                    <p className="text-[10px] opacity-40 leading-relaxed">
+                      Pick a month, add any holidays (no meetings on those days), then generate.
+                    </p>
+                    <form onSubmit={handleGenerateMonthSchedule} className="space-y-5">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <label className="text-[10px] uppercase tracking-widest font-bold opacity-40 ml-4">Month</label>
+                          <select
+                            value={generateMonthForm.month}
+                            onChange={(e) => setGenerateMonthForm(prev => ({ ...prev, month: e.target.value }))}
+                            className={cn(
+                              "w-full px-6 py-3 rounded-2xl border transition-all outline-none",
+                              isDarkMode ? "bg-black/40 border-white/10 text-white" : "bg-[#F5F5F0] border-black/5 text-black"
+                            )}
+                          >
+                            {['01','02','03','04','05','06','07','08','09','10','11','12'].map(m => (
+                              <option key={m} value={m}>{format(parseISO(`2026-${m}-01`), 'MMMM')}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-[10px] uppercase tracking-widest font-bold opacity-40 ml-4">Year</label>
+                          <select
+                            value={generateMonthForm.year}
+                            onChange={(e) => setGenerateMonthForm(prev => ({ ...prev, year: e.target.value }))}
+                            className={cn(
+                              "w-full px-6 py-3 rounded-2xl border transition-all outline-none",
+                              isDarkMode ? "bg-black/40 border-white/10 text-white" : "bg-[#F5F5F0] border-black/5 text-black"
+                            )}
+                          >
+                            {['2026','2027','2028'].map(y => (
+                              <option key={y} value={y}>{y}</option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+
+                      {/* Holiday picker */}
+                      <div className="space-y-2">
+                        <label className="text-[10px] uppercase tracking-widest font-bold opacity-40 ml-4">Add Holidays for This Month (Optional)</label>
+                        <div className="flex gap-2">
+                          <input
+                            type="date"
+                            value={newHolidayDateInput}
+                            onChange={(e) => setNewHolidayDateInput(e.target.value)}
+                            className={cn(
+                              "flex-1 px-6 py-3 rounded-2xl border transition-all outline-none",
+                              isDarkMode ? "bg-black/40 border-white/10 text-white" : "bg-[#F5F5F0] border-black/5 text-black"
+                            )}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (newHolidayDateInput && !pendingHolidayDates.includes(newHolidayDateInput)) {
+                                setPendingHolidayDates(prev => [...prev, newHolidayDateInput].sort());
+                                setNewHolidayDateInput('');
+                              }
+                            }}
+                            className="px-4 py-3 bg-[#5A5A40] text-white rounded-2xl font-bold text-xs tracking-widest uppercase hover:bg-[#4A4A30] transition-all flex items-center gap-1"
+                          >
+                            <Plus className="w-3 h-3" /> Add
+                          </button>
+                        </div>
+                        {pendingHolidayDates.length > 0 && (
+                          <div className="space-y-2 mt-2">
+                            {pendingHolidayDates.map(d => (
+                              <div key={d} className={cn(
+                                "flex items-center justify-between px-4 py-2 rounded-2xl border text-sm",
+                                isDarkMode ? "bg-black/20 border-white/5" : "bg-amber-50 border-amber-200/40"
+                              )}>
+                                <span className="font-medium">{format(parseISO(d), 'EEE, MMM d yyyy')} — <span className="text-[10px] opacity-50 uppercase tracking-widest">Holiday</span></span>
+                                <button
+                                  type="button"
+                                  onClick={() => setPendingHolidayDates(prev => prev.filter(x => x !== d))}
+                                  className="text-red-500 hover:text-red-700 transition-colors"
+                                >
+                                  <X className="w-3 h-3" />
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      <button
+                        type="submit"
+                        disabled={isGeneratingMonth}
+                        className="w-full bg-[#5A5A40] text-white py-4 rounded-2xl font-bold text-xs tracking-widest uppercase hover:bg-[#4A4A30] transition-all disabled:opacity-50 shadow-lg shadow-[#5A5A40]/20 flex items-center justify-center gap-2"
+                      >
+                        {isGeneratingMonth ? <><RefreshCw className="w-3 h-3 animate-spin" /> Generating...</> : <><CalendarIcon className="w-3 h-3" /> Generate {format(parseISO(`${generateMonthForm.year}-${generateMonthForm.month}-01`), 'MMMM yyyy')} Schedule</>}
+                      </button>
+                    </form>
+                  </div>
+
                   <div className={cn(
                     "p-8 rounded-[40px] border space-y-6",
                     isDarkMode ? "bg-white/5 border-white/10" : "bg-white border-black/5 shadow-sm"
@@ -2095,26 +2244,6 @@ export default function App() {
                       >
                         <RefreshCw className="w-4 h-4" />
                         Regenerate Current
-                      </button>
-                      <button
-                        onClick={() => generateSchedule('2026-03-01')}
-                        className={cn(
-                          "flex items-center justify-center gap-3 p-6 rounded-3xl border transition-all text-sm font-medium bg-[#5A5A40] text-white",
-                          isDarkMode ? "hover:bg-[#4A4A30]" : "hover:bg-[#4A4A30]"
-                        )}
-                      >
-                        <CalendarIcon className="w-4 h-4" />
-                        Generate March 2026
-                      </button>
-                      <button
-                        onClick={() => generateSchedule('2026-04-01')}
-                        className={cn(
-                          "flex items-center justify-center gap-3 p-6 rounded-3xl border transition-all text-sm font-medium bg-[#5A5A40] text-white",
-                          isDarkMode ? "hover:bg-[#4A4A30]" : "hover:bg-[#4A4A30]"
-                        )}
-                      >
-                        <CalendarIcon className="w-4 h-4" />
-                        Generate April 2026
                       </button>
                       <button
                         onClick={resetAllSchedule}
