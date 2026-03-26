@@ -2422,19 +2422,29 @@ export default function App() {
                       ) : (
                         <div className="space-y-4 animate-in zoom-in-95 duration-300">
                           <div className="flex items-center justify-between mb-2">
-                             <span className="text-[10px] uppercase tracking-widest font-bold opacity-40 ml-4">Assign 15 Roles Manually</span>
+                             <span className="text-[10px] uppercase tracking-widest font-bold opacity-40 ml-4">Assign 15 Roles + 3 Backups Manually</span>
                              <button 
                                type="button"
                                onClick={() => {
                                  const startIdx = specialCaseForm.batchIdx * 15;
+                                 const nextBatchStartIdx = ((specialCaseForm.batchIdx + 1) % 4) * 15;
                                  const autoRoster: any = {};
-                                 [
+                                 const roles = [
                                    'TMOD', 'GE', 'TTM', 'TIMER', 'AH_COUNTER', 'GRAMMARIAN',
                                    'SPEAKER_1', 'SPEAKER_2', 'SPEAKER_3', 'EVALUATOR_1', 'EVALUATOR_2', 'EVALUATOR_3',
                                    'TT_SPEAKER_1', 'TT_SPEAKER_2', 'TT_SPEAKER_3'
-                                 ].forEach((role, i) => {
+                                 ];
+                                 
+                                 // Fill primary 15
+                                 roles.forEach((role, i) => {
                                    if (members[startIdx + i]) autoRoster[role] = members[startIdx + i].id;
                                  });
+
+                                 // Fill 3 backups from next batch
+                                 ['BACKUP_1', 'BACKUP_2', 'BACKUP_3'].forEach((role, i) => {
+                                   if (members[nextBatchStartIdx + i]) autoRoster[role] = members[nextBatchStartIdx + i].id;
+                                 });
+
                                  setManualRoster(autoRoster);
                                }}
                                className="text-[9px] uppercase tracking-widest font-bold text-purple-500 hover:underline"
@@ -2446,16 +2456,21 @@ export default function App() {
                             {[
                               'TMOD', 'GE', 'TTM', 'TIMER', 'AH_COUNTER', 'GRAMMARIAN',
                               'SPEAKER_1', 'SPEAKER_2', 'SPEAKER_3', 'EVALUATOR_1', 'EVALUATOR_2', 'EVALUATOR_3',
-                              'TT_SPEAKER_1', 'TT_SPEAKER_2', 'TT_SPEAKER_3'
+                              'TT_SPEAKER_1', 'TT_SPEAKER_2', 'TT_SPEAKER_3',
+                              'BACKUP_1', 'BACKUP_2', 'BACKUP_3'
                             ].map(role => (
                               <div key={role} className="space-y-1">
-                                <label className="text-[8px] uppercase tracking-widest font-bold opacity-30 ml-2">{role.replace('_', ' ')}</label>
+                                <label className={cn(
+                                  "text-[8px] uppercase tracking-widest font-bold ml-2",
+                                  role.startsWith('BACKUP') ? "text-purple-500/60" : "opacity-30"
+                                )}>{role.replace('_', ' ')}</label>
                                 <select
                                   value={manualRoster[role] || ''}
                                   onChange={(e) => setManualRoster(prev => ({ ...prev, [role]: parseInt(e.target.value) }))}
                                   className={cn(
                                     "w-full px-3 py-2 rounded-xl border text-[10px] outline-none",
-                                    isDarkMode ? "bg-black/40 border-white/10 text-white" : "bg-[#F5F5F0] border-black/5 text-black"
+                                    isDarkMode ? "bg-black/40 border-white/10 text-white" : "bg-[#F5F5F0] border-black/5 text-black",
+                                    role.startsWith('BACKUP') && "border-purple-500/20"
                                   )}
                                 >
                                   <option value="">Select Member...</option>
@@ -2465,6 +2480,7 @@ export default function App() {
                                 </select>
                               </div>
                             ))}
+
                           </div>
                         </div>
                       )}
