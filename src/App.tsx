@@ -93,6 +93,21 @@ export default function App() {
   const [newHolidayDateInput, setNewHolidayDateInput] = useState('');
   const [isGeneratingMonth, setIsGeneratingMonth] = useState(false);
   const [generateMonthSuccess, setGenerateMonthSuccess] = useState(false);
+  
+  // Special Case Override state
+  const [specialCaseForm, setSpecialCaseForm] = useState({
+    date: format(addDays(startOfToday(), 1), 'yyyy-MM-dd'),
+    batchIdx: 0,
+    stepIdx: 0
+  });
+  const [isGeneratingSpecial, setIsGeneratingSpecial] = useState(false);
+  const [specialCaseSuccess, setSpecialCaseSuccess] = useState(false);
+  const [shiftSubsequent, setShiftSubsequent] = useState(false);
+  const [manualRosterMode, setManualRosterMode] = useState(false);
+  const [manualRoster, setManualRoster] = useState<Record<string, number>>({});
+  const [generateMonthBatchOverride, setGenerateMonthBatchOverride] = useState<{setIdx: number, stepIdx: number} | null>(null);
+
+
 
   // Connectivity diagnostics
   const [isCheckingConnectivity, setIsCheckingConnectivity] = useState(false);
@@ -398,12 +413,19 @@ export default function App() {
     if (!confirm(`Generate schedule for ${monthName}?${holidayList}`)) return;
     setIsGeneratingMonth(true);
     try {
-      await supabaseService.generateMonthSchedule(generateMonthForm.month, generateMonthForm.year, pendingHolidayDates);
+      await supabaseService.generateMonthSchedule(
+        generateMonthForm.month, 
+        generateMonthForm.year, 
+        pendingHolidayDates,
+        generateMonthBatchOverride || undefined
+      );
       await fetchData();
       if (isAdminLoggedIn) await fetchHolidays();
       setPendingHolidayDates([]);
       setNewHolidayDateInput('');
+      setGenerateMonthBatchOverride(null);
       setGenerateMonthSuccess(true);
+
       setTimeout(() => setGenerateMonthSuccess(false), 4000);
     } catch (error) {
       console.error('Error generating month schedule:', error);
@@ -611,6 +633,33 @@ export default function App() {
       setIsAddingAdhoc(false);
     }
   };
+
+  const handleSpecialCaseGenerate = async (e: FormEvent) => {
+    e.preventDefault();
+    const modeText = manualRosterMode ? "Manual Roster" : `Batch ${specialCaseForm.batchIdx + 1}`;
+    if (!confirm(`Generate special case (${modeText}) for ${specialCaseForm.date}?${shiftSubsequent ? " This will shift all future meetings." : ""}`)) return;
+    setIsGeneratingSpecial(true);
+    try {
+      await supabaseService.generateDateWithOverride(
+        specialCaseForm.date,
+        specialCaseForm.batchIdx,
+        specialCaseForm.stepIdx,
+        manualRosterMode ? manualRoster : undefined,
+        shiftSubsequent
+      );
+      await fetchData();
+      setSpecialCaseSuccess(true);
+      setTimeout(() => setSpecialCaseSuccess(false), 3000);
+      if (manualRosterMode) setManualRoster({});
+    } catch (error) {
+      console.error('Error generating special case:', error);
+      alert('Failed to generate special case roster.');
+    } finally {
+      setIsGeneratingSpecial(false);
+    }
+  };
+
+
 
   const handleLogin = (e: FormEvent) => {
     e.preventDefault();
@@ -2172,6 +2221,51 @@ export default function App() {
                         </div>
                       </div>
 
+                      {/* Starting Batch Override */}
+                      <div className="space-y-2">
+                        <label className="flex items-center gap-2 text-[10px] uppercase tracking-widest font-bold opacity-40 ml-4">
+                          <input 
+                            type="checkbox" 
+                            checked={generateMonthBatchOverride !== null} 
+                            onChange={(e) => setGenerateMonthBatchOverride(e.target.checked ? {setIdx: 0, stepIdx: 0} : null)}
+                            className="w-3 h-3 rounded-sm border-black/20"
+                          />
+                          Start with Specific Batch? (Shift Sequence)
+                        </label>
+                        {generateMonthBatchOverride && (
+                          <div className="grid grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-2 duration-300">
+                            <select
+                              value={generateMonthBatchOverride.setIdx}
+                              onChange={(e) => setGenerateMonthBatchOverride(prev => ({ ...prev!, setIdx: parseInt(e.target.value) }))}
+                              className={cn(
+                                "w-full px-6 py-3 rounded-2xl border transition-all outline-none",
+                                isDarkMode ? "bg-black/40 border-white/10 text-white" : "bg-[#F5F5F0] border-black/5 text-black"
+                              )}
+                            >
+                              <option value={0}>Batch 1 (1-15)</option>
+                              <option value={1}>Batch 2 (16-30)</option>
+                              <option value={2}>Batch 3 (31-45)</option>
+                              <option value={3}>Batch 4 (46-60)</option>
+                            </select>
+                            <select
+                              value={generateMonthBatchOverride.stepIdx}
+                              onChange={(e) => setGenerateMonthBatchOverride(prev => ({ ...prev!, stepIdx: parseInt(e.target.value) }))}
+                              className={cn(
+                                "w-full px-6 py-3 rounded-2xl border transition-all outline-none",
+                                isDarkMode ? "bg-black/40 border-white/10 text-white" : "bg-[#F5F5F0] border-black/5 text-black"
+                              )}
+                            >
+                              <option value={0}>Step 0 (Standard)</option>
+                              <option value={1}>Step 1</option>
+                              <option value={2}>Step 2</option>
+                              <option value={3}>Step 3</option>
+                              <option value={4}>Step 4</option>
+                            </select>
+                          </div>
+                        )}
+                      </div>
+
+
                       {/* Holiday picker */}
                       <div className="space-y-2">
                         <label className="text-[10px] uppercase tracking-widest font-bold opacity-40 ml-4">Add Holidays for This Month (Optional)</label>
@@ -2228,6 +2322,163 @@ export default function App() {
                       </button>
                     </form>
                   </div>
+
+                  {/* Special Case Override */}
+                  <div className={cn(
+                    "p-8 rounded-[40px] border space-y-6 relative overflow-hidden",
+                    isDarkMode ? "bg-white/5 border-white/10" : "bg-white border-black/5 shadow-sm"
+                  )}>
+                    <AnimatePresence>
+                      {specialCaseSuccess && (
+                        <motion.div
+                          initial={{ opacity: 0, y: -20 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -20 }}
+                          className="absolute inset-x-0 top-0 bg-emerald-500 text-white py-2 text-center text-[8px] uppercase tracking-widest font-bold z-10"
+                        >
+                          Special Case Roster Generated!
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                    <div className="flex items-center gap-3">
+                      <AlertCircle className="w-5 h-5 text-purple-500" />
+                      <h4 className="text-xs uppercase tracking-[0.2em] font-bold text-[#5A5A40]">Special Case Override</h4>
+                    </div>
+                    <p className="text-[10px] opacity-40 leading-relaxed">
+                      Manually assign a specific Batch and Rotation to a date. Use this to fix skips or jumps in the schedule.
+                    </p>
+                    <form onSubmit={handleSpecialCaseGenerate} className="space-y-6">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="space-y-2">
+                          <label className="text-[10px] uppercase tracking-widest font-bold opacity-40 ml-4">Date</label>
+                          <input
+                            type="date"
+                            value={specialCaseForm.date}
+                            onChange={(e) => setSpecialCaseForm(prev => ({ ...prev, date: e.target.value }))}
+                            className={cn(
+                              "w-full px-6 py-3 rounded-2xl border transition-all outline-none",
+                              isDarkMode ? "bg-black/40 border-white/10 text-white" : "bg-[#F5F5F0] border-black/5 text-black"
+                            )}
+                          />
+                        </div>
+                        <div className="flex flex-col justify-center space-y-3">
+                          <label className="flex items-center gap-2 text-[10px] uppercase tracking-widest font-bold opacity-40 ml-4 cursor-pointer">
+                            <input 
+                              type="checkbox" 
+                              checked={shiftSubsequent} 
+                              onChange={(e) => setShiftSubsequent(e.target.checked)}
+                              className="w-3 h-3 rounded-sm"
+                            />
+                            Shift subsequent meetings? (Option 1)
+                          </label>
+                          <label className="flex items-center gap-2 text-[10px] uppercase tracking-widest font-bold opacity-40 ml-4 cursor-pointer text-purple-600">
+                            <input 
+                              type="checkbox" 
+                              checked={manualRosterMode} 
+                              onChange={(e) => setManualRosterMode(e.target.checked)}
+                              className="w-3 h-3 rounded-sm"
+                            />
+                            Manual Member List? (Option 2)
+                          </label>
+                        </div>
+                      </div>
+
+                      {!manualRosterMode ? (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-in fade-in duration-300">
+                          <div className="space-y-2">
+                            <label className="text-[10px] uppercase tracking-widest font-bold opacity-40 ml-4">Select Batch</label>
+                            <select
+                              value={specialCaseForm.batchIdx}
+                              onChange={(e) => setSpecialCaseForm(prev => ({ ...prev, batchIdx: parseInt(e.target.value) }))}
+                              className={cn(
+                                "w-full px-6 py-3 rounded-2xl border transition-all outline-none",
+                                isDarkMode ? "bg-black/40 border-white/10 text-white" : "bg-[#F5F5F0] border-black/5 text-black"
+                              )}
+                            >
+                              <option value={0}>Batch 1 (1-15)</option>
+                              <option value={1}>Batch 2 (16-30)</option>
+                              <option value={2}>Batch 3 (31-45)</option>
+                              <option value={3}>Batch 4 (46-60)</option>
+                            </select>
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-[10px] uppercase tracking-widest font-bold opacity-40 ml-4">Rotation Step</label>
+                            <select
+                              value={specialCaseForm.stepIdx}
+                              onChange={(e) => setSpecialCaseForm(prev => ({ ...prev, stepIdx: parseInt(e.target.value) }))}
+                              className={cn(
+                                "w-full px-6 py-3 rounded-2xl border transition-all outline-none",
+                                isDarkMode ? "bg-black/40 border-white/10 text-white" : "bg-[#F5F5F0] border-black/5 text-black"
+                              )}
+                            >
+                              <option value={0}>Step 0 (Standard)</option>
+                              <option value={1}>Step 1</option>
+                              <option value={2}>Step 2</option>
+                              <option value={3}>Step 3</option>
+                              <option value={4}>Step 4</option>
+                            </select>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="space-y-4 animate-in zoom-in-95 duration-300">
+                          <div className="flex items-center justify-between mb-2">
+                             <span className="text-[10px] uppercase tracking-widest font-bold opacity-40 ml-4">Assign 15 Roles Manually</span>
+                             <button 
+                               type="button"
+                               onClick={() => {
+                                 const startIdx = specialCaseForm.batchIdx * 15;
+                                 const autoRoster: any = {};
+                                 [
+                                   'TMOD', 'GE', 'TTM', 'TIMER', 'AH_COUNTER', 'GRAMMARIAN',
+                                   'SPEAKER_1', 'SPEAKER_2', 'SPEAKER_3', 'EVALUATOR_1', 'EVALUATOR_2', 'EVALUATOR_3',
+                                   'TT_SPEAKER_1', 'TT_SPEAKER_2', 'TT_SPEAKER_3'
+                                 ].forEach((role, i) => {
+                                   if (members[startIdx + i]) autoRoster[role] = members[startIdx + i].id;
+                                 });
+                                 setManualRoster(autoRoster);
+                               }}
+                               className="text-[9px] uppercase tracking-widest font-bold text-purple-500 hover:underline"
+                             >
+                               Fill from Batch {specialCaseForm.batchIdx + 1}
+                             </button>
+                          </div>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                            {[
+                              'TMOD', 'GE', 'TTM', 'TIMER', 'AH_COUNTER', 'GRAMMARIAN',
+                              'SPEAKER_1', 'SPEAKER_2', 'SPEAKER_3', 'EVALUATOR_1', 'EVALUATOR_2', 'EVALUATOR_3',
+                              'TT_SPEAKER_1', 'TT_SPEAKER_2', 'TT_SPEAKER_3'
+                            ].map(role => (
+                              <div key={role} className="space-y-1">
+                                <label className="text-[8px] uppercase tracking-widest font-bold opacity-30 ml-2">{role.replace('_', ' ')}</label>
+                                <select
+                                  value={manualRoster[role] || ''}
+                                  onChange={(e) => setManualRoster(prev => ({ ...prev, [role]: parseInt(e.target.value) }))}
+                                  className={cn(
+                                    "w-full px-3 py-2 rounded-xl border text-[10px] outline-none",
+                                    isDarkMode ? "bg-black/40 border-white/10 text-white" : "bg-[#F5F5F0] border-black/5 text-black"
+                                  )}
+                                >
+                                  <option value="">Select Member...</option>
+                                  {Array.isArray(members) && members.sort((a,b) => a.name.localeCompare(b.name)).map(m => (
+                                    <option key={m.id} value={m.id}>{m.name}</option>
+                                  ))}
+                                </select>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      <button
+                        type="submit"
+                        disabled={isGeneratingSpecial}
+                        className="w-full bg-purple-600 text-white py-3 rounded-2xl font-bold text-xs tracking-widest uppercase hover:bg-purple-700 transition-all disabled:opacity-50"
+                      >
+                        {isGeneratingSpecial ? 'Generating...' : 'Apply Special Case Roster'}
+                      </button>
+                    </form>
+                  </div>
+
 
                   <div className={cn(
                     "p-8 rounded-[40px] border space-y-6",

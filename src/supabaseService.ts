@@ -490,7 +490,7 @@ export const supabaseService = {
         await supabase.from('daily_theme').delete().gte('date', start).lte('date', end);
     },
 
-    async generateSchedule(startDate: string) {
+    async generateSchedule(startDate: string, overrideBatch?: { setIdx: number, stepIdx: number }) {
         const { data: members } = await supabase.from('members').select('*').order('attendance_order');
         if (!members || members.length === 0) throw new Error("No members found");
 
@@ -510,11 +510,11 @@ export const supabaseService = {
 
         // The rotation mapping derived from the February spreadsheet images
         const triadRotationMappings = [
-            [1, 2, 3, 4, 5], // Step 0: [1,2,3,4,5]
-            [5, 4, 1, 3, 2], // Step 1: Exact match for Feb 17, 18, 19, 20
-            [2, 1, 4, 5, 3], // Step 2: Exact match for Feb 21, 24, 25, 26
-            [4, 5, 2, 1, 3], // Step 3: Predicted next logic
-            [3, 3, 5, 2, 1]  // Step 4: Predicted next logic
+            [1, 2, 3, 4, 5],
+            [5, 4, 1, 3, 2],
+            [2, 1, 4, 5, 3],
+            [4, 5, 2, 1, 3],
+            [3, 3, 5, 2, 1]
         ];
 
         const febHardcoded: Record<string, string[]> = {
@@ -541,6 +541,7 @@ export const supabaseService = {
         const targetMonth = currentDate.getMonth();
 
         const newEntries = [];
+        let meetingNumSinceStart = 0;
 
         for (let i = 0; i < daysToGenerate; i++) {
             if (isStartOfMonth && currentDate.getMonth() !== targetMonth) break;
@@ -553,8 +554,6 @@ export const supabaseService = {
                 continue;
             }
 
-            const { count } = await supabase.from('schedule').select('*', { count: 'exact', head: true }).eq('date', dateStr);
-
             // Atomicity: check if roles already exist for this date before inserting
             const { data: existingRoles } = await supabase
                 .from('schedule')
@@ -563,17 +562,22 @@ export const supabaseService = {
                 .limit(1);
 
             if (!existingRoles || existingRoles.length === 0) {
-                let workingDayCount = 0;
-                let tempDate = baselineDate;
-                while (tempDate < currentDate) {
-                    const tempDateStr = format(tempDate, "yyyy-MM-dd");
-                    if (tempDate.getDay() !== 0 && !holidays.includes(tempDateStr)) {
-                        workingDayCount++;
+                let effectiveMeetingCount = 0;
+
+                if (overrideBatch) {
+                    effectiveMeetingCount = (overrideBatch.stepIdx * 4) + overrideBatch.setIdx + meetingNumSinceStart;
+                } else {
+                    let tempDate = baselineDate;
+                    while (tempDate < currentDate) {
+                        const tempDateStr = format(tempDate, "yyyy-MM-dd");
+                        if (tempDate.getDay() !== 0 && !holidays.includes(tempDateStr)) {
+                            effectiveMeetingCount++;
+                        }
+                        tempDate = addDays(tempDate, 1);
                     }
-                    tempDate = addDays(tempDate, 1);
                 }
 
-                if (febHardcoded[dateStr]) {
+                if (!overrideBatch && febHardcoded[dateStr]) {
                     const rolePlayerNames = febHardcoded[dateStr];
                     for (let rIdx = 0; rIdx < 15; rIdx++) {
                         const name = rolePlayerNames[rIdx];
@@ -588,13 +592,12 @@ export const supabaseService = {
                         }
                     }
                 } else {
-                    const setIdx = workingDayCount % 4; // 4 sets of 15 members
-                    const stepIdx = Math.floor(workingDayCount / 4) % 5; // 5 steps in rotation
+                    const setIdx = effectiveMeetingCount % 4; // 4 sets of 15 members
+                    const stepIdx = Math.floor(effectiveMeetingCount / 4) % 5; // 5 steps in rotation
                     const mapping = triadRotationMappings[stepIdx];
 
                     // Role Players (15 members)
                     for (let tIdx = 0; tIdx < 5; tIdx++) {
-                        const triadId = tIdx + 1;
                         const destinationGroupIdx = mapping[tIdx] - 1;
                         const triadMembers = [
                             members[setIdx * 15 + tIdx * 3],
@@ -603,19 +606,21 @@ export const supabaseService = {
                         ];
 
                         for (let rIdx = 0; rIdx < 3; rIdx++) {
-                            newEntries.push({
-                                date: dateStr,
-                                role_id: roleGroups[destinationGroupIdx][rIdx],
-                                original_member_id: triadMembers[rIdx].id,
-                                current_member_id: triadMembers[rIdx].id
-                            });
+                            if (triadMembers[rIdx]) {
+                                newEntries.push({
+                                    date: dateStr,
+                                    role_id: roleGroups[destinationGroupIdx][rIdx],
+                                    original_member_id: triadMembers[rIdx].id,
+                                    current_member_id: triadMembers[rIdx].id
+                                });
+                            }
                         }
                     }
                 }
 
                 // Backups (3 members - Triad 1 of the NEXT set)
-                const setIdxForBackup = workingDayCount % 4;
-                const nextSetIdx = (setIdxForBackup + 1) % 4;
+                const derivedSetIdx = (overrideBatch ? ((overrideBatch.stepIdx * 4) + overrideBatch.setIdx + meetingNumSinceStart) : effectiveMeetingCount) % 4;
+                const nextSetIdx = (derivedSetIdx + 1) % 4;
 
                 // Track members already assigned to main roles today
                 const assignedMainMemberIds = new Set(
@@ -639,6 +644,8 @@ export const supabaseService = {
                     }
                     offset++;
                 }
+                
+                meetingNumSinceStart++;
             }
             currentDate = addDays(currentDate, 1);
         }
@@ -649,7 +656,7 @@ export const supabaseService = {
         }
     },
 
-    async generateMonthSchedule(month: string, year: string, holidayDates: string[]) {
+    async generateMonthSchedule(month: string, year: string, holidayDates: string[], overrideBatch?: { setIdx: number, stepIdx: number }) {
         // 1. Upsert all provided holidays into the holidays table
         if (holidayDates.length > 0) {
             const holidayRows = holidayDates.map(date => ({
@@ -661,8 +668,9 @@ export const supabaseService = {
 
         // 2. Generate schedule starting from the 1st of the given month
         const startDate = `${year}-${month.padStart(2, '0')}-01`;
-        await this.generateSchedule(startDate);
+        await this.generateSchedule(startDate, overrideBatch);
     },
+
 
     async shiftSchedule(startDate: string, reason: string) {
         // 1. Capture current state for undo
@@ -756,6 +764,116 @@ export const supabaseService = {
     async deleteAllSchedule() {
         const { error } = await supabase.from('schedule').delete().neq('id', 0);
         if (error) throw error;
+    },
+
+    async generateDateWithOverride(
+        dateStr: string, 
+        setIdx: number, 
+        stepIdx: number, 
+        manualRoster?: Record<string, number>,
+        shiftSubsequent?: boolean
+    ) {
+        const { data: members } = await supabase.from('members').select('*').order('attendance_order');
+        if (!members || members.length === 0) throw new Error('No members found');
+
+        // Delete any existing scheduled (non-completed) entries for this date first
+        await supabase.from('schedule').delete().eq('date', dateStr).eq('status', 'scheduled');
+
+        const roleGroups = [
+            ['TMOD', 'GE', 'TTM'],
+            ['TIMER', 'AH_COUNTER', 'GRAMMARIAN'],
+            ['SPEAKER_1', 'SPEAKER_2', 'SPEAKER_3'],
+            ['EVALUATOR_1', 'EVALUATOR_2', 'EVALUATOR_3'],
+            ['TT_SPEAKER_1', 'TT_SPEAKER_2', 'TT_SPEAKER_3']
+        ];
+
+        const triadRotationMappings = [
+            [1, 2, 3, 4, 5],
+            [5, 4, 1, 3, 2],
+            [2, 1, 4, 5, 3],
+            [4, 5, 2, 1, 3],
+            [3, 3, 5, 2, 1]
+        ];
+
+        const newEntries: any[] = [];
+
+        if (manualRoster) {
+            // Option 2: Manual Roster
+            Object.entries(manualRoster).forEach(([roleId, memberId]) => {
+                newEntries.push({
+                    date: dateStr,
+                    role_id: roleId,
+                    original_member_id: memberId,
+                    current_member_id: memberId,
+                    status: 'scheduled'
+                });
+            });
+        } else {
+            // Option 1: Batch Override
+            const mapping = triadRotationMappings[stepIdx % 5];
+            for (let tIdx = 0; tIdx < 5; tIdx++) {
+                const destinationGroupIdx = mapping[tIdx] - 1;
+                const triadMembers = [
+                    members[setIdx * 15 + tIdx * 3],
+                    members[setIdx * 15 + tIdx * 3 + 1],
+                    members[setIdx * 15 + tIdx * 3 + 2]
+                ];
+                for (let rIdx = 0; rIdx < 3; rIdx++) {
+                    if (triadMembers[rIdx]) {
+                        newEntries.push({
+                            date: dateStr,
+                            role_id: roleGroups[destinationGroupIdx][rIdx],
+                            original_member_id: triadMembers[rIdx].id,
+                            current_member_id: triadMembers[rIdx].id,
+                            status: 'scheduled'
+                        });
+                    }
+                }
+            }
+
+            // Backups
+            const nextSetIdx = (setIdx + 1) % 4;
+            const assignedIds = new Set(newEntries.map(e => e.original_member_id));
+            let bIdx = 0, offset = 0;
+            while (bIdx < 3 && offset < members.length) {
+                const backupMember = members[(nextSetIdx * 15 + offset) % members.length];
+                if (!assignedIds.has(backupMember.id)) {
+                    newEntries.push({
+                        date: dateStr,
+                        role_id: `BACKUP_${bIdx + 1}`,
+                        original_member_id: backupMember.id,
+                        current_member_id: backupMember.id,
+                        status: 'scheduled'
+                    });
+                    bIdx++;
+                }
+                offset++;
+            }
+        }
+
+        if (newEntries.length > 0) {
+            await supabase.from('schedule').insert(newEntries);
+        }
+
+        if (shiftSubsequent) {
+            // 1. Delete all FUTURE scheduled meetings
+            await supabase.from('schedule').delete().gt('date', dateStr).eq('status', 'scheduled');
+            
+            // 2. Identify start point for next meeting
+            const nextMeetingSetIdx = (setIdx + 1) % 4;
+            const nextMeetingStepIdx = (setIdx === 3) ? (stepIdx + 1) % 5 : stepIdx;
+            
+            // 3. Find next available meeting date
+            const { data: holidayData } = await supabase.from('holidays').select('date');
+            const holidays = holidayData?.map(h => h.date) || [];
+            let nextDate = addDays(parseISO(dateStr), 1);
+            while (nextDate.getDay() === 0 || holidays.includes(format(nextDate, 'yyyy-MM-dd'))) {
+                nextDate = addDays(nextDate, 1);
+            }
+            
+            // 4. Regenerate forward
+            await this.generateSchedule(format(nextDate, 'yyyy-MM-dd'), { setIdx: nextMeetingSetIdx, stepIdx: nextMeetingStepIdx });
+        }
     },
 
     async syncMembers() {
