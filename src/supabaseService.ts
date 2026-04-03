@@ -19,7 +19,6 @@ export const supabaseService = {
     },
 
     async getSchedule() {
-        // Fetch all data with individual error handling to prevent one failure from blocking all
         try {
             const [
                 schedRes,
@@ -40,11 +39,6 @@ export const supabaseService = {
             const icebreakers = (iceRes.status === 'fulfilled' && !iceRes.value.error) ? iceRes.value.data : [];
             const themes = (themeRes.status === 'fulfilled' && !themeRes.value.error) ? themeRes.value.data : [];
 
-            if (schedRes.status === 'rejected' || (schedRes.status === 'fulfilled' && schedRes.value.error)) {
-                console.error('Schedule fetch error:', (schedRes as any).reason || (schedRes as any).value?.error);
-            }
-
-            // Get all unique dates from all three sources
             const allDates = new Set<string>();
             scheduleData?.forEach(s => allDates.add(typeof s.date === 'string' ? s.date.split('T')[0] : s.date));
             icebreakers?.forEach(i => allDates.add(typeof i.date === 'string' ? i.date.split('T')[0] : i.date));
@@ -62,8 +56,8 @@ export const supabaseService = {
                         result.push({
                             id: s.id,
                             date: s.date,
-                            role_id: s.role_id, // Ensure we use roleId or role_id consistently as per App.tsx usage
-                            roleId: s.role_id,   // Providing both to be safe
+                            role_id: s.role_id,
+                            roleId: s.role_id,
                             originalMemberId: s.original_member_id,
                             currentMemberId: s.current_member_id,
                             status: s.status,
@@ -77,9 +71,8 @@ export const supabaseService = {
                         });
                     });
                 } else {
-                    // Add a "meta" entry for dates with theme/icebreaker but no roles
                     result.push({
-                        id: -1, // Dummy ID
+                        id: -1,
                         date: dateStr,
                         roleId: 'META',
                         theme: th?.theme,
@@ -88,7 +81,6 @@ export const supabaseService = {
                 }
             });
 
-            // Sort by date, then by role order
             return result.sort((a, b) => {
                 if (a.date !== b.date) return a.date.localeCompare(b.date);
                 const indexA = ROLES.findIndex(r => r.id === a.roleId);
@@ -103,35 +95,27 @@ export const supabaseService = {
 
     async getThemes(): Promise<{ date: string; theme: string }[]> {
         const { data, error } = await supabase.from('daily_theme').select('*');
-        console.log('[DEBUG] daily_theme data:', data, 'error:', error);
         if (error) throw error;
         return (data || []).map(t => ({ date: t.date.split('T')[0], theme: t.theme }));
     },
 
     async getIcebreakers(): Promise<{ date: string; game_name: string }[]> {
         const { data, error } = await supabase.from('daily_icebreaker').select('*');
-        console.log('[DEBUG] daily_icebreaker data:', data, 'error:', error);
         if (error) throw error;
         return (data || []).map(i => ({ date: i.date.split('T')[0], game_name: i.game_name }));
     },
 
     async updateTheme(date: string, theme: string) {
-        console.log('[DEBUG] updateTheme called with:', date, theme);
-        const { data, error } = await supabase
+        const { error } = await supabase
             .from('daily_theme')
-            .upsert({ date, theme }, { onConflict: 'date' })
-            .select();
-        console.log('[DEBUG] updateTheme result:', data, 'error:', error);
+            .upsert({ date, theme }, { onConflict: 'date' });
         if (error) throw error;
     },
 
     async updateIcebreaker(date: string, gameName: string) {
-        console.log('[DEBUG] updateIcebreaker called with:', date, gameName);
-        const { data, error } = await supabase
+        const { error } = await supabase
             .from('daily_icebreaker')
-            .upsert({ date, game_name: gameName }, { onConflict: 'date' })
-            .select();
-        console.log('[DEBUG] updateIcebreaker result:', data, 'error:', error);
+            .upsert({ date, game_name: gameName }, { onConflict: 'date' });
         if (error) throw error;
     },
 
@@ -194,14 +178,12 @@ export const supabaseService = {
     },
 
     async removeHoliday(date: string) {
-        // 1. Delete from holidays table
         const { error: delError } = await supabase
             .from('holidays')
             .delete()
             .eq('date', date);
         if (delError) throw delError;
 
-        // 2. Identify all meetings scheduled AFTER this date to shift them BACKWARD
         const { data: scheduleData } = await supabase
             .from('schedule')
             .select('date')
@@ -211,23 +193,15 @@ export const supabaseService = {
         const uniqueDates = Array.from(new Set(scheduleData?.map(d => d.date)));
         if (uniqueDates.length === 0) return;
 
-        // Get updated holidays list to find gaps
         const { data: holidayData } = await supabase.from('holidays').select('date');
         const holidayDates = holidayData?.map(h => h.date) || [];
 
-        // Shift backwards: current date moves to the first available slot >= date
-        // We do this by essentially re-calculating the dates for all subsequent meetings
         let currentAvailableDate = parseISO(date);
-
         for (const d of uniqueDates) {
-            // Find the NEXT available date for this meeting "d"
-            // Since we are shifting BACK, it will likely occupy the hole created by the removed holiday
             while (currentAvailableDate.getDay() === 0 || holidayDates.includes(format(currentAvailableDate, "yyyy-MM-dd"))) {
                 currentAvailableDate = addDays(currentAvailableDate, 1);
             }
-
             const targetDateStr = format(currentAvailableDate, "yyyy-MM-dd");
-
             if (targetDateStr !== d) {
                 await Promise.all([
                     supabase.from('schedule').update({ date: targetDateStr }).eq('date', d),
@@ -235,19 +209,14 @@ export const supabaseService = {
                     supabase.from('daily_theme').update({ date: targetDateStr }).eq('date', d)
                 ]);
             }
-
             currentAvailableDate = addDays(currentAvailableDate, 1);
         }
     },
 
     async addAdhocMeeting(date: string, reason: string) {
-        // 1. If it was a holiday, remove it
         await supabase.from('holidays').delete().eq('date', date);
-
-        // 2. Shift all subsequent meetings FORWARD to make room
         const { data: scheduleDates } = await supabase.from('schedule').select('date').gte('date', date).order('date', { ascending: false });
         const dates = Array.from(new Set(scheduleDates?.map(d => d.date)));
-
         const { data: holidayData } = await supabase.from('holidays').select('date');
         const holidayDates = holidayData?.map(h => h.date) || [];
 
@@ -257,15 +226,12 @@ export const supabaseService = {
                 nextDate = addDays(nextDate, 1);
             }
             const nextDateStr = format(nextDate, "yyyy-MM-dd");
-
             await Promise.all([
                 supabase.from('schedule').update({ date: nextDateStr }).eq('date', d),
                 supabase.from('daily_icebreaker').update({ date: nextDateStr }).eq('date', d),
                 supabase.from('daily_theme').update({ date: nextDateStr }).eq('date', d)
             ]);
         }
-
-        // 3. Generate schedule for JUST this date
         await this.generateSchedule(date);
     },
 
@@ -303,17 +269,13 @@ export const supabaseService = {
         if (entryError || !entry) throw new Error("Entry not found");
 
         const todayStr = format(new Date(), 'yyyy-MM-dd');
-        if (entry.date < todayStr) {
-            throw new Error("Cannot modify past attendance");
-        }
+        if (entry.date < todayStr) throw new Error("Cannot modify past attendance");
 
-        // If backup is absent, just mark them absent
         if (entry.role_id.startsWith('BACKUP_')) {
             await supabase.from('schedule').update({ status: 'absent' }).eq('id', scheduleId);
             return;
         }
 
-        // Find all potential backups for this specific date
         const { data: backups } = await supabase
             .from('schedule')
             .select('*')
@@ -323,8 +285,6 @@ export const supabaseService = {
 
         let availableBackup = null;
         for (const b of backups || []) {
-            // RE-FETCH ALL assignments for today to check for "Double Booking" 
-            // This MUST be inside the loop to prevent race conditions from concurrent calls
             const { data: currentAssignments } = await supabase
                 .from('schedule')
                 .select('current_member_id')
@@ -332,15 +292,8 @@ export const supabaseService = {
                 .neq('status', 'absent');
 
             const busyMemberIds = new Set(currentAssignments?.map(a => a.current_member_id) || []);
+            if (busyMemberIds.has(b.original_member_id)) continue;
 
-            // Check if this backup member is already busy with another role today
-            if (busyMemberIds.has(b.original_member_id)) {
-                console.log(`Backup ${b.original_member_id} is already serving a role today. Skipping.`);
-                continue;
-            }
-
-            // ATOMICALLY try to claim this backup by updating its status ONLY if it's still 'scheduled'
-            // This prevents race conditions where two absentees pick the same backup at the same time
             const { data: claimed, error: claimError } = await supabase
                 .from('schedule')
                 .update({ status: 'absent' })
@@ -358,18 +311,13 @@ export const supabaseService = {
             const backupMemberId = availableBackup.original_member_id;
             const absenteeMemberId = entry.original_member_id;
 
-            // 1. Assign backup to this role today
             await supabase.from('schedule').update({
                 current_member_id: backupMemberId,
                 is_substitution: true,
                 replaced_by_id: absenteeMemberId,
-                status: entry.date < todayStr ? 'completed' : 'scheduled'
+                status: 'scheduled'
             }).eq('id', scheduleId);
 
-            // Note: Backup's own slot was already marked 'absent' in the atomic claim step above.
-
-            // 3. Compensation Role: Find the FIRST meeting where the absentee DOES NOT have a main role
-            // This prevents "Double Booking" bugs (e.g. Haricharan appearing twice)
             const { data: futureMeetings } = await supabase
                 .from('schedule')
                 .select('date')
@@ -377,7 +325,6 @@ export const supabaseService = {
                 .order('date', { ascending: true });
 
             const uniqueDates = Array.from(new Set(futureMeetings?.map(m => m.date) || []));
-
             let targetDate = null;
             for (const date of uniqueDates) {
                 const { data: rolesOnDate } = await supabase
@@ -386,7 +333,6 @@ export const supabaseService = {
                     .eq('date', date)
                     .eq('original_member_id', absenteeMemberId);
 
-                // If they have no roles (unlikely) or ONLY have a backup role, they are 'free' to take the compensation role
                 const isFree = !rolesOnDate || rolesOnDate.length === 0 || rolesOnDate.every(r => r.role_id.startsWith('BACKUP_'));
                 if (isFree) {
                     targetDate = date;
@@ -395,7 +341,6 @@ export const supabaseService = {
             }
 
             if (targetDate) {
-                // Find the backup's original role on that target date to give to the absentee
                 const { data: backupRoleToTake } = await supabase
                     .from('schedule')
                     .select('id')
@@ -412,7 +357,6 @@ export const supabaseService = {
                 }
             }
         } else {
-            // No backup available
             await supabase.from('schedule').update({ status: 'absent' }).eq('id', scheduleId);
         }
     },
@@ -435,7 +379,6 @@ export const supabaseService = {
             const backupMemberId = entry.current_member_id;
             const absenteeMemberId = entry.original_member_id;
 
-            // 1. Restore the backup's placeholder status for today
             const { data: backupPlaceholder } = await supabase
                 .from('schedule')
                 .select('id')
@@ -448,8 +391,6 @@ export const supabaseService = {
                 await supabase.from('schedule').update({ status: newStatus }).eq('id', backupPlaceholder.id);
             }
 
-            // 2. Revert the SPECIFIC role shift on the future date
-            // We only revert if that future entry is currently held by the absentee AND marks the backup as the one replaced
             await supabase.from('schedule').update({
                 current_member_id: backupMemberId,
                 is_substitution: false,
@@ -480,7 +421,6 @@ export const supabaseService = {
     async deleteMonthSchedule(month: string, year: string) {
         const monthNum = parseInt(month);
         const yearNum = parseInt(year);
-        // Create a date for the first of the month
         const baseDate = new Date(yearNum, monthNum - 1, 1);
         const start = format(baseDate, 'yyyy-MM-01');
         const end = format(endOfMonth(baseDate), 'yyyy-MM-dd');
@@ -490,16 +430,14 @@ export const supabaseService = {
         await supabase.from('daily_theme').delete().gte('date', start).lte('date', end);
     },
 
-    async generateSchedule(startDate: string, overrideBatch?: { setIdx: number, stepIdx: number }) {
+    async generateSchedule(startDate: string, overrideBatch?: { setIdx: number, stepIdx: number }, isSingleDay?: boolean) {
+        console.log(`Starting schedule generation from ${startDate}... Override:`, overrideBatch, `SingleDay:`, isSingleDay);
         const { data: members } = await supabase.from('members').select('*').order('attendance_order');
-        if (!members || members.length === 0) throw new Error("No members found");
+        if (!members || members.length === 0) throw new Error("No members found in database.");
 
         const { data: holidaysData } = await supabase.from('holidays').select('date');
         const holidays = holidaysData?.map(h => h.date) || [];
 
-        const baselineDate = parseISO('2026-02-11');
-
-        // Roles grouped by Triad (3 roles per group)
         const roleGroups = [
             ["TMOD", "GE", "TTM"],
             ["TIMER", "AH_COUNTER", "GRAMMARIAN"],
@@ -508,191 +446,185 @@ export const supabaseService = {
             ["TT_SPEAKER_1", "TT_SPEAKER_2", "TT_SPEAKER_3"]
         ];
 
-        // The rotation mapping derived from the February spreadsheet images
-        const triadRotationMappings = [
-            [1, 2, 3, 4, 5],
-            [5, 4, 1, 3, 2],
-            [2, 1, 4, 5, 3],
-            [4, 5, 2, 1, 3],
-            [3, 3, 5, 2, 1]
-        ];
-
-        const febHardcoded: Record<string, string[]> = {
-            "2026-02-11": ["NAVANEETHA KRISHNAN.R", "ALLEN VICTOR.A", "HARSHITHAA SHREE.R", "KARTHICK PANDIYAN.M", "KABILVISHWA.TM", "HARI PRASATH.G", "SHARMILA.J", "HEMA VARSHINI.A", "HARSHINI.S", "KARTHIKEYAN.P", "DHARUNYASRI.G", "HIBSA FARITH.S.H", "DHAKSHANA.K", "ABISHEK.S", "HARSHINI.S.D"],
-            "2026-02-12": ["HARI CHARAN.S.P", "SAKTHI DIVASHKAR.M", "HARISH KARTHI.R", "BALAJI.N", "NITESH VARMAN.M", "MAHENDRAN.N.P", "VENKATAPRIYA.S", "YUVASRI.K", "SUJITHA.J.T", "PATHMASINDHUJA.K", "LAKSHMI.L", "BOOPESH.K.V", "SENTHAMILSELVI.M", "KHAN MOHAMED.S", "SWETHA ROSE.S"],
-            "2026-02-13": ["VIMAL.V.S", "RAHUL.P", "MOHAMED YUNUS.R", "PRIYADHARSHINI.K", "HARIHARAN.S", "YATHEESHWAR.B.R", "LATHIKA.S", "DEVIPRIYA.T", "SANTHOSHKANNA.S", "ABINESH MILTON.T", "DIVYESH SANKAR.N.K", "GOKUL.S", "YOGAHARANI.A", "MAGATHI.M", "SHRUTI.K"],
-            "2026-02-16": ["MATTHEW PAULS.A", "GURU VIGNESHWARAN.S", "BIRUNTHA.J", "MAHALAKSHMI.G", "UMA MAHESWARI.M", "YOGESH.K", "GAUTHAM.S", "SRIMATHI.B", "PRINCE VICTOR.A", "PRATHIKSHA.M.P", "DINESHPANDI.R", "YAZHINI.M", "HARSHVARDHAN.S", "MOHAMMED SALMANKHAN.N", "DEEPIKA SRI.R.K"],
-            "2026-02-17": ["DHAKSHANA.K", "ABISHEK.S", "HARSHINI.S.D", "KARTHIKEYAN.P", "DHARUNYASRI.G", "HIBSA FARITH.S.H", "NAVANEETHA KRISHNAN.R", "ALLEN VICTOR.A", "HARSHITHAA SHREE.R", "SHARMILA.J", "HEMA VARSHINI.A", "HARSHINI.S", "KARTHICK PANDIYAN.M", "KABILVISHWA.TM", "HARI PRASATH.G"],
-            "2026-02-18": ["SENTHAMILSELVI.M", "KHAN MOHAMED.S", "SWETHA ROSE.S", "PATHMASINDHUJA.K", "LAKSHMI.L", "BOOPESH.K.V", "HARI CHARAN.S.P", "SAKTHI DIVASHKAR.M", "HARISH KARTHI.R", "VENKATAPRIYA.S", "YUVASRI.K", "SUJITHA.J.T", "BALAJI.N", "NITESH VARMAN.M", "MAHENDRAN.N.P"],
-            "2026-02-19": ["YOGAHARANI.A", "MAGATHI.M", "SHRUTI.K", "ABINESH MILTON.T", "DIVYESH SANKAR.N.K", "GOKUL.S", "VIMAL.V.S", "RAHUL.P", "MOHAMED YUNUS.R", "LATHIKA.S", "DEVIPRIYA.T", "SANTHOSHKANNA.S", "PRIYADHARSHINI.K", "HARIHARAN.S", "YATHEESHWAR.B.R"],
-            "2026-02-20": ["HARSHVARDHAN.S", "MOHAMMED SALMANKHAN.N", "DEEPIKA SRI.R.K", "PRATHIKSHA.M.P", "DINESHPANDI.R", "YAZHINI.M", "MATTHEW PAULS.A", "GURU VIGNESHWARAN.S", "BIRUNTHA.J", "GAUTHAM.S", "SRIMATHI.B", "PRINCE VICTOR.A", "MAHALAKSHMI.G", "UMA MAHESWARI.M", "YOGESH.K"],
-            "2026-02-21": ["KARTHICK PANDIYAN.M", "KABILVISHWA.TM", "HARI PRASATH.G", "NAVANEETHA KRISHNAN.R", "ALLEN VICTOR.A", "HARSHITHAA SHREE.R", "KARTHIKEYAN.P", "DHARUNYASRI.G", "HIBSA FARITH.S.H", "DHAKSHANA.K", "ABISHEK.S", "HARSHINI.S.D", "SHARMILA.J", "HEMA VARSHINI.A", "HARSHINI.S"],
-            "2026-02-24": ["BALAJI.N", "NITESH VARMAN.M", "MAHENDRAN.N.P", "HARI CHARAN.S.P", "SAKTHI DIVASHKAR.M", "HARISH KARTHI.R", "PATHMASINDHUJA.K", "LAKSHMI.L", "BOOPESH.K.V", "SENTHAMILSELVI.M", "KHAN MOHAMED.S", "SWETHA ROSE.S", "VENKATAPRIYA.S", "YUVASRI.K", "SUJITHA.J.T"],
-            "2026-02-25": ["PRIYADHARSHINI.K", "HARIHARAN.S", "YATHEESHWAR.B.R", "VIMAL.V.S", "RAHUL.P", "MOHAMED YUNUS.R", "ABINESH MILTON.T", "DIVYESH SANKAR.N.K", "GOKUL.S", "YOGAHARANI.A", "MAGATHI.M", "SHRUTI.K", "LATHIKA.S", "DEVIPRIYA.T", "SANTHOSHKANNA.S"],
-            "2026-02-26": ["MAHALAKSHMI.G", "UMA MAHESWARI.M", "YOGESH.K", "MATTHEW PAULS.A", "GURU VIGNESHWARAN.S", "BIRUNTHA.J", "PRATHIKSHA.M.P", "DINESHPANDI.R", "YAZHINI.M", "GAUTHAM.S", "SRIMATHI.B", "PRINCE VICTOR.A", "HARSHVARDHAN.S", "MOHAMMED SALMANKHAN.N", "DEEPIKA SRI.R.K"],
-            "2026-02-27": ["SHARMILA.J", "HEMA VARSHINI.A", "HARSHINI.S", "DHAKSHANA.K", "ABISHEK.S", "HARSHINI.S.D", "KARTHIKEYAN.P", "DHARUNYASRI.G", "HIBSA FARITH.S.H", "NAVANEETHA KRISHNAN.R", "ALLEN VICTOR.A", "HARSHITHAA SHREE.R", "KARTHICK PANDIYAN.M", "KABILVISHWA.TM", "HARI PRASATH.G"]
-        };
-
-        const flatRolesList = roleGroups.flat();
-
         let currentDate = parseISO(startDate);
         const isStartOfMonth = currentDate.getDate() === 1;
-        const daysToGenerate = isStartOfMonth ? 31 : 12;
+        const daysToGenerate = isSingleDay ? 1 : (isStartOfMonth ? 31 : 12);
         const targetMonth = currentDate.getMonth();
 
-        const newEntries = [];
+        const newEntries: any[] = [];
         let meetingNumSinceStart = 0;
 
+        // Fetch history since the start of the system to calculate participation counts for rotation
+        const { roleHistory, lastParticipationDate } = await this.getMemberHistory('2026-02-11');
+        const sessionParticipation: Record<number, number> = {};
+        members.forEach(m => {
+            sessionParticipation[m.id] = (roleHistory[m.id]?.length || 0);
+        });
+
+        // Use actual meeting count to handle batch progression correctly
+        const { data: priorMeetings } = await supabase.from('schedule').select('date').lt('date', startDate).not('role_id', 'like', 'BACKUP_%');
+        const baseMeetingCount = new Set((priorMeetings || []).map((m: any) => m.date)).size;
+
         for (let i = 0; i < daysToGenerate; i++) {
-            if (isStartOfMonth && currentDate.getMonth() !== targetMonth) break;
-
+            if (!isSingleDay && isStartOfMonth && currentDate.getMonth() !== targetMonth) break;
             const dateStr = format(currentDate, "yyyy-MM-dd");
-            const isSunday = currentDate.getDay() === 0;
-
-            if (isSunday || holidays.includes(dateStr)) {
+            if (currentDate.getDay() === 0 || holidays.includes(dateStr)) {
                 currentDate = addDays(currentDate, 1);
+                // If it's a single day and we hit a holiday/Sunday, we might want to skip generation,
+                // but the old logic just skipped the loop. So if isSingleDay is true, it shouldn't just skip and generate nothing.
+                // For a single day override, the frontend ensures it's a valid date, but just in case:
+                if (isSingleDay) {
+                    throw new Error(`Cannot schedule on ${dateStr} (Sunday or Holiday).`);
+                }
                 continue;
             }
 
-            // Atomicity: check if roles already exist for this date before inserting
-            const { data: existingRoles } = await supabase
-                .from('schedule')
-                .select('id')
-                .eq('date', dateStr)
-                .limit(1);
+            console.log(`--- Processing date: ${dateStr} (Meeting #${baseMeetingCount + meetingNumSinceStart + 1}) ---`);
+            // Clear any existing draft entries
+            await supabase.from('schedule').delete().eq('date', dateStr).eq('status', 'scheduled');
 
-            if (!existingRoles || existingRoles.length === 0) {
-                let effectiveMeetingCount = 0;
+            const currentMeetingIndex = baseMeetingCount + meetingNumSinceStart;
+            let selectedTriadIds: number[][] = Array(5).fill(null);
 
-                if (overrideBatch) {
-                    effectiveMeetingCount = (overrideBatch.stepIdx * 4) + overrideBatch.setIdx + meetingNumSinceStart;
-                } else {
-                    let tempDate = baselineDate;
-                    while (tempDate < currentDate) {
-                        const tempDateStr = format(tempDate, "yyyy-MM-dd");
-                        if (tempDate.getDay() !== 0 && !holidays.includes(tempDateStr)) {
-                            effectiveMeetingCount++;
-                        }
-                        tempDate = addDays(tempDate, 1);
-                    }
-                }
-
-                if (!overrideBatch && febHardcoded[dateStr]) {
-                    const rolePlayerNames = febHardcoded[dateStr];
-                    for (let rIdx = 0; rIdx < 15; rIdx++) {
-                        const name = rolePlayerNames[rIdx];
-                        const member = members.find(m => m.name.trim().toLowerCase() === name.trim().toLowerCase());
-                        if (member) {
-                            newEntries.push({
-                                date: dateStr,
-                                role_id: flatRolesList[rIdx],
-                                original_member_id: member.id,
-                                current_member_id: member.id
-                            });
-                        }
-                    }
-                } else {
-                    const setIdx = effectiveMeetingCount % 4; // 4 sets of 15 members
-                    const stepIdx = Math.floor(effectiveMeetingCount / 4) % 5; // 5 steps in rotation
-                    const mapping = triadRotationMappings[stepIdx];
-
-                    // Role Players (15 members)
-                    for (let tIdx = 0; tIdx < 5; tIdx++) {
-                        const destinationGroupIdx = mapping[tIdx] - 1;
-                        const triadMembers = [
-                            members[setIdx * 15 + tIdx * 3],
-                            members[setIdx * 15 + tIdx * 3 + 1],
-                            members[setIdx * 15 + tIdx * 3 + 2]
-                        ];
-
-                        for (let rIdx = 0; rIdx < 3; rIdx++) {
-                            if (triadMembers[rIdx]) {
-                                newEntries.push({
-                                    date: dateStr,
-                                    role_id: roleGroups[destinationGroupIdx][rIdx],
-                                    original_member_id: triadMembers[rIdx].id,
-                                    current_member_id: triadMembers[rIdx].id
-                                });
-                            }
-                        }
-                    }
-                }
-
-                // Backups (3 members - Triad 1 of the NEXT set)
-                const derivedSetIdx = (overrideBatch ? ((overrideBatch.stepIdx * 4) + overrideBatch.setIdx + meetingNumSinceStart) : effectiveMeetingCount) % 4;
-                const nextSetIdx = (derivedSetIdx + 1) % 4;
-
-                // Track members already assigned to main roles today
-                const assignedMainMemberIds = new Set(
-                    newEntries
-                        .filter(e => e.date === dateStr && !e.role_id.startsWith('BACKUP_'))
-                        .map(e => e.original_member_id)
-                );
-
-                let bIdx = 0;
-                let offset = 0;
-                while (bIdx < 3 && offset < members.length) {
-                    const backupMember = members[(nextSetIdx * 15 + offset) % members.length];
-                    if (!assignedMainMemberIds.has(backupMember.id)) {
-                        newEntries.push({
-                            date: dateStr,
-                            role_id: `BACKUP_${bIdx + 1}`,
-                            original_member_id: backupMember.id,
-                            current_member_id: backupMember.id
-                        });
-                        bIdx++;
-                    }
-                    offset++;
-                }
+            if (overrideBatch) {
+                const effectiveCount = (overrideBatch.stepIdx * 4) + overrideBatch.setIdx + meetingNumSinceStart;
+                const setIdx = effectiveCount % 4;
+                const stepIdx = Math.floor(effectiveCount / 4) % 5;
+                const triadRotationMappings = [[1, 2, 3, 4, 5], [5, 4, 1, 3, 2], [2, 1, 4, 5, 3], [4, 5, 2, 1, 3], [3, 4, 5, 2, 1]];
+                const mapping = triadRotationMappings[stepIdx];
                 
-                meetingNumSinceStart++;
+                console.log(`Using Batch: Set ${setIdx + 1}, Step ${stepIdx + 1} (Mapping: ${mapping})`);
+
+                for (let tIdx = 0; tIdx < 5; tIdx++) {
+                    const destinationGroupIdx = mapping[tIdx] - 1;
+                    const triadIds = [
+                        members[setIdx * 15 + tIdx * 3]?.id,
+                        members[setIdx * 15 + tIdx * 3 + 1]?.id,
+                        members[setIdx * 15 + tIdx * 3 + 2]?.id
+                    ].filter(id => id !== undefined);
+                    
+                    if (triadIds.length === 3) {
+                        selectedTriadIds[destinationGroupIdx] = triadIds;
+                    }
+                }
+            } else {
+                // Fallback to pool-based selection if no batch is specified
+                const sortedPool = [...members].sort((a, b) => {
+                    const countA = sessionParticipation[a.id] || 0;
+                    const countB = sessionParticipation[b.id] || 0;
+                    if (countA !== countB) return countA - countB;
+                    return (lastParticipationDate[a.id] || "").localeCompare(lastParticipationDate[b.id] || "");
+                });
+
+                const selectedMembers = sortedPool.slice(0, 15);
+                for (let gIdx = 0; gIdx < 5; gIdx++) {
+                    // FIX: Shift the triads through the role groups based on meeting index to ensure they cycle
+                    const destinationGroupIdx = (currentMeetingIndex + gIdx) % 5;
+                    selectedTriadIds[destinationGroupIdx] = selectedMembers.slice(gIdx * 3, gIdx * 3 + 3).map(m => m.id);
+                }
             }
+
+            // Assign roles within each triad based on participation count (1->2->3 rotation)
+            selectedTriadIds.forEach((triadIds, gIdx) => {
+                if (!triadIds || triadIds.length === 0) return;
+                const groupRoles = roleGroups[gIdx];
+                const rolesTaken = new Set<number>();
+                
+                // Sort by ID to ensure deterministic assignment if multiple members have same history
+                const pickingOrder = [...triadIds].sort((a, b) => a - b);
+
+                pickingOrder.forEach(mId => {
+                    let roleIdx = (sessionParticipation[mId] || 0) % 3;
+                    // Resolve collisions within the same triad (should not happen if everyone increments correctly)
+                    while (rolesTaken.has(roleIdx)) {
+                        roleIdx = (roleIdx + 1) % 3;
+                    }
+                    rolesTaken.add(roleIdx);
+                    
+                    newEntries.push({
+                        date: dateStr,
+                        role_id: groupRoles[roleIdx],
+                        original_member_id: mId,
+                        current_member_id: mId,
+                        status: 'scheduled'
+                    });
+
+                    // Update memory state for this loop so subsequent meeting rotations work
+                    sessionParticipation[mId]++;
+                    lastParticipationDate[mId] = dateStr;
+                    const mName = members.find(m => m.id === mId)?.name;
+                    console.log(`  Assigned ${mName} to ${groupRoles[roleIdx]} (Participation: ${sessionParticipation[mId] - 1} -> ${sessionParticipation[mId]})`);
+                });
+            });
+
+            // Handle Backups
+            const assignedIds = new Set(newEntries.filter(e => e.date === dateStr).map(e => e.original_member_id));
+            const backupCandidates = members
+                .filter(m => !assignedIds.has(m.id))
+                .sort((a, b) => (sessionParticipation[a.id] || 0) - (sessionParticipation[b.id] || 0));
+            
+            backupCandidates.slice(0, 3).forEach((b, bIdx) => {
+                newEntries.push({
+                    date: dateStr,
+                    role_id: `BACKUP_${bIdx + 1}`,
+                    original_member_id: b.id,
+                    current_member_id: b.id,
+                    status: 'scheduled'
+                });
+            });
+
+            meetingNumSinceStart++;
             currentDate = addDays(currentDate, 1);
         }
 
-
         if (newEntries.length > 0) {
-            await supabase.from('schedule').insert(newEntries);
+            try {
+                console.log(`Finalizing schedule: Inserting ${newEntries.length} entries...`);
+                const { error } = await supabase.from('schedule').insert(newEntries);
+                if (error) {
+                    console.error('DATABASE ERROR during insertion:', error);
+                    throw new Error(`Schedule Insertion Failed: ${error.message}`);
+                }
+                console.log('SUCCESS: Schedule generation completed and saved.');
+            } catch (err: any) {
+                console.error('FATAL ERROR in generateSchedule:', err);
+                throw err;
+            }
         }
     },
 
     async generateMonthSchedule(month: string, year: string, holidayDates: string[], overrideBatch?: { setIdx: number, stepIdx: number }) {
-        // 1. Upsert all provided holidays into the holidays table
+        const startDateString = `${year}-${month.padStart(2, '0')}-01`;
+        const lastDateInMonth = format(endOfMonth(parseISO(startDateString)), 'yyyy-MM-dd');
+        
+        console.log(`Generating schedule for ${month}/${year}. Cleaning up existing scheduled entries...`);
+        await supabase.from('schedule')
+            .delete()
+            .gte('date', startDateString)
+            .lte('date', lastDateInMonth)
+            .eq('status', 'scheduled');
+
         if (holidayDates.length > 0) {
-            const holidayRows = holidayDates.map(date => ({
-                date,
-                reason: 'Holiday (pre-set for month generation)'
-            }));
+            const holidayRows = holidayDates.map(date => ({ date, reason: 'Holiday' }));
             await supabase.from('holidays').upsert(holidayRows, { onConflict: 'date' });
         }
-
-        // 2. Generate schedule starting from the 1st of the given month
-        const startDate = `${year}-${month.padStart(2, '0')}-01`;
-        await this.generateSchedule(startDate, overrideBatch);
+        await this.generateSchedule(startDateString, overrideBatch);
     },
 
-
     async shiftSchedule(startDate: string, reason: string) {
-        // 1. Capture current state for undo
         const [{ data: originalSchedule }, { data: originalIcebreakers }] = await Promise.all([
             supabase.from('schedule').select('*').gte('date', startDate),
             supabase.from('daily_icebreaker').select('*').gte('date', startDate)
         ]);
-
         await supabase.from('schedule_history').insert({
             operation_type: 'shift',
             original_schedule: originalSchedule,
             original_icebreakers: originalIcebreakers,
             holiday_date: startDate
         });
-
-        // 2. Add to holidays
         await supabase.from('holidays').upsert({ date: startDate, reason: reason || "Unexpected Holiday" });
-
-        // 3. Get all unique dates from schedule >= startDate in DESCENDING order
         const { data: scheduleDates } = await supabase.from('schedule').select('date').gte('date', startDate).order('date', { ascending: false });
         const dates = Array.from(new Set(scheduleDates?.map(d => d.date)));
-
         const { data: holidayData } = await supabase.from('holidays').select('date');
         const holidayDates = holidayData?.map(h => h.date) || [];
 
@@ -702,7 +634,6 @@ export const supabaseService = {
                 nextDate = addDays(nextDate, 1);
             }
             const nextDateStr = format(nextDate, "yyyy-MM-dd");
-
             await Promise.all([
                 supabase.from('schedule').update({ date: nextDateStr }).eq('date', d),
                 supabase.from('daily_icebreaker').update({ date: nextDateStr }).eq('date', d)
@@ -712,297 +643,94 @@ export const supabaseService = {
 
     async rescheduleMeeting(sourceDate: string, targetDate: string) {
         if (targetDate < sourceDate) {
-            // Shifting backward: remove holidays between target and source
-            const { data: holidaysInRange } = await supabase
-                .from('holidays')
-                .select('date')
-                .gte('date', targetDate)
-                .lt('date', sourceDate);
-
-            if (holidaysInRange && holidaysInRange.length > 0) {
-                // To be safe, we remove the holiday at the target date and trigger a backward shift
-                await this.removeHoliday(targetDate);
-            }
+            const { data: holidaysInRange } = await supabase.from('holidays').select('date').gte('date', targetDate).lt('date', sourceDate);
+            if (holidaysInRange && holidaysInRange.length > 0) await this.removeHoliday(targetDate);
         } else if (targetDate > sourceDate) {
-            // Shifting forward: declare source date as holiday
             await this.shiftSchedule(sourceDate, "Rescheduled");
         }
     },
 
     async undoShift() {
-        const { data: lastHistory, error } = await supabase
-            .from('schedule_history')
-            .select('*')
-            .order('id', { ascending: false })
-            .limit(1)
-            .single();
-
+        const { data: lastHistory, error } = await supabase.from('schedule_history').select('*').order('id', { ascending: false }).limit(1).single();
         if (error || !lastHistory) throw new Error("No history to undo");
-
-        const originalSchedule = lastHistory.original_schedule;
-        const originalIcebreakers = lastHistory.original_icebreakers;
         const holidayDate = lastHistory.holiday_date;
-
         await Promise.all([
             supabase.from('schedule').delete().gte('date', holidayDate),
             supabase.from('daily_icebreaker').delete().gte('date', holidayDate),
             supabase.from('holidays').delete().eq('date', holidayDate)
         ]);
-
-        if (originalSchedule && originalSchedule.length > 0) {
-            // Map back to Supabase field names if necessary (they should already match if we saved them correctly)
-            await supabase.from('schedule').insert(originalSchedule);
-        }
-
-        if (originalIcebreakers && originalIcebreakers.length > 0) {
-            await supabase.from('daily_icebreaker').insert(originalIcebreakers);
-        }
-
+        if (lastHistory.original_schedule) await supabase.from('schedule').insert(lastHistory.original_schedule);
+        if (lastHistory.original_icebreakers) await supabase.from('daily_icebreaker').insert(lastHistory.original_icebreakers);
         await supabase.from('schedule_history').delete().eq('id', lastHistory.id);
     },
 
     async deleteAllSchedule() {
-        const { error } = await supabase.from('schedule').delete().neq('id', 0);
-        if (error) throw error;
+        await supabase.from('schedule').delete().neq('id', 0);
     },
 
-    async generateDateWithOverride(
-        dateStr: string, 
-        setIdx: number, 
-        stepIdx: number, 
-        manualRoster?: Record<string, number>,
-        shiftSubsequent?: boolean
-    ) {
-        const { data: members } = await supabase.from('members').select('*').order('attendance_order');
-        if (!members || members.length === 0) throw new Error('No members found');
-
-        // Delete any existing scheduled (non-completed) entries for this date first
-        await supabase.from('schedule').delete().eq('date', dateStr).eq('status', 'scheduled');
-
-        const roleGroups = [
-            ['TMOD', 'GE', 'TTM'],
-            ['TIMER', 'AH_COUNTER', 'GRAMMARIAN'],
-            ['SPEAKER_1', 'SPEAKER_2', 'SPEAKER_3'],
-            ['EVALUATOR_1', 'EVALUATOR_2', 'EVALUATOR_3'],
-            ['TT_SPEAKER_1', 'TT_SPEAKER_2', 'TT_SPEAKER_3']
-        ];
-
-        const triadRotationMappings = [
-            [1, 2, 3, 4, 5],
-            [5, 4, 1, 3, 2],
-            [2, 1, 4, 5, 3],
-            [4, 5, 2, 1, 3],
-            [3, 3, 5, 2, 1]
-        ];
-
-        const newEntries: any[] = [];
-
+    async generateDateWithOverride(dateStr: string, setIdx: number, stepIdx: number, manualRoster?: Record<string, number>, shiftSubsequent?: boolean) {
         if (manualRoster) {
-            // Option 2: Manual Roster
+            const { data: members } = await supabase.from('members').select('*').order('attendance_order');
+            if (!members || members.length === 0) throw new Error('No members found');
+            await supabase.from('schedule').delete().eq('date', dateStr).eq('status', 'scheduled');
+            const newEntries: any[] = [];
             Object.entries(manualRoster).forEach(([roleId, memberId]) => {
-                newEntries.push({
-                    date: dateStr,
-                    role_id: roleId,
-                    original_member_id: memberId,
-                    current_member_id: memberId,
-                    status: 'scheduled'
-                });
+                newEntries.push({ date: dateStr, role_id: roleId, original_member_id: memberId, current_member_id: memberId, status: 'scheduled' });
             });
+            if (newEntries.length > 0) await supabase.from('schedule').insert(newEntries);
         } else {
-            // Option 1: Batch Override
-            const mapping = triadRotationMappings[stepIdx % 5];
-            for (let tIdx = 0; tIdx < 5; tIdx++) {
-                const destinationGroupIdx = mapping[tIdx] - 1;
-                const triadMembers = [
-                    members[setIdx * 15 + tIdx * 3],
-                    members[setIdx * 15 + tIdx * 3 + 1],
-                    members[setIdx * 15 + tIdx * 3 + 2]
-                ];
-                for (let rIdx = 0; rIdx < 3; rIdx++) {
-                    if (triadMembers[rIdx]) {
-                        newEntries.push({
-                            date: dateStr,
-                            role_id: roleGroups[destinationGroupIdx][rIdx],
-                            original_member_id: triadMembers[rIdx].id,
-                            current_member_id: triadMembers[rIdx].id,
-                            status: 'scheduled'
-                        });
-                    }
-                }
-            }
-
-            // Backups
-            const nextSetIdx = (setIdx + 1) % 4;
-            const assignedIds = new Set(newEntries.map(e => e.original_member_id));
-            let bIdx = 0, offset = 0;
-            while (bIdx < 3 && offset < members.length) {
-                const backupMember = members[(nextSetIdx * 15 + offset) % members.length];
-                if (!assignedIds.has(backupMember.id)) {
-                    newEntries.push({
-                        date: dateStr,
-                        role_id: `BACKUP_${bIdx + 1}`,
-                        original_member_id: backupMember.id,
-                        current_member_id: backupMember.id,
-                        status: 'scheduled'
-                    });
-                    bIdx++;
-                }
-                offset++;
-            }
-        }
-
-        if (newEntries.length > 0) {
-            await supabase.from('schedule').insert(newEntries);
+            // Cleanly delegate to the unified, history-based generation logic
+            await this.generateSchedule(dateStr, { setIdx, stepIdx }, true);
         }
 
         if (shiftSubsequent) {
-            // 1. Delete all FUTURE scheduled meetings
             await supabase.from('schedule').delete().gt('date', dateStr).eq('status', 'scheduled');
-            
-            // 2. Identify start point for next meeting
-            const nextMeetingSetIdx = (setIdx + 1) % 4;
-            const nextMeetingStepIdx = (setIdx === 3) ? (stepIdx + 1) % 5 : stepIdx;
-            
-            // 3. Find next available meeting date
-            const { data: holidayData } = await supabase.from('holidays').select('date');
-            const holidays = holidayData?.map(h => h.date) || [];
             let nextDate = addDays(parseISO(dateStr), 1);
-            while (nextDate.getDay() === 0 || holidays.includes(format(nextDate, 'yyyy-MM-dd'))) {
-                nextDate = addDays(nextDate, 1);
-            }
-            
-            // 4. Regenerate forward
-            await this.generateSchedule(format(nextDate, 'yyyy-MM-dd'), { setIdx: nextMeetingSetIdx, stepIdx: nextMeetingStepIdx });
+            const { data: hData } = await supabase.from('holidays').select('date');
+            const hList = hData?.map(h => h.date) || [];
+            while (nextDate.getDay() === 0 || hList.includes(format(nextDate, 'yyyy-MM-dd'))) nextDate = addDays(nextDate, 1);
+            await this.generateSchedule(format(nextDate, 'yyyy-MM-dd'), { setIdx: (setIdx + 1) % 4, stepIdx: (setIdx === 3) ? (stepIdx + 1) % 5 : stepIdx });
         }
+    },
+
+    async getMemberHistory(sinceDate: string) {
+        const { data: scheduleData, error } = await supabase.from('schedule').select('date, role_id, original_member_id').gte('date', sinceDate).not('role_id', 'like', 'BACKUP_%');
+        if (error) throw error;
+        const roleHistory: Record<number, string[]> = {};
+        const triadHistory: Record<number, Set<number>> = {};
+        const lastParticipationDate: Record<number, string> = {};
+        const byDate: Record<string, any[]> = {};
+        scheduleData?.forEach(row => {
+            const dateStr = typeof row.date === 'string' ? row.date.split('T')[0] : row.date;
+            if (!byDate[dateStr]) byDate[dateStr] = [];
+            byDate[dateStr].push(row);
+            if (!roleHistory[row.original_member_id]) roleHistory[row.original_member_id] = [];
+            roleHistory[row.original_member_id].push(row.role_id);
+            if (!lastParticipationDate[row.original_member_id] || dateStr > lastParticipationDate[row.original_member_id]) {
+                lastParticipationDate[row.original_member_id] = dateStr;
+            }
+        });
+        const roleGroups = [["TMOD", "GE", "TTM"], ["TIMER", "AH_COUNTER", "GRAMMARIAN"], ["SPEAKER_1", "SPEAKER_2", "SPEAKER_3"], ["EVALUATOR_1", "EVALUATOR_2", "EVALUATOR_3"], ["TT_SPEAKER_1", "TT_SPEAKER_2", "TT_SPEAKER_3"]];
+        Object.values(byDate).forEach(dayRoles => {
+            roleGroups.forEach(group => {
+                const groupMembers = dayRoles.filter(r => group.includes(r.role_id)).map(r => r.original_member_id);
+                if (groupMembers.length === 3) {
+                    groupMembers.forEach(m1 => {
+                        if (!triadHistory[m1]) triadHistory[m1] = new Set();
+                        groupMembers.forEach(m2 => { if (m1 !== m2) triadHistory[m1].add(m2); });
+                    });
+                }
+            });
+        });
+        return { roleHistory, triadHistory, lastParticipationDate };
     },
 
     async syncMembers() {
         const membersList = [
-            { rollNo: "25UEC002", name: "NAVANEETHA KRISHNAN.R" },
-            { rollNo: "25UEC004", name: "ALLEN VICTOR.A" },
-            { rollNo: "25UEC006", name: "HARSHITHAA SHREE.R" },
-            { rollNo: "25UEC008", name: "KARTHICK PANDIYAN.M" },
-            { rollNo: "25UEC010", name: "KABILVISHWA.TM" },
-            { rollNo: "25UEC012", name: "HARI PRASATH.G" },
-            { rollNo: "25UEC014", name: "SHARMILA.J" },
-            { rollNo: "25UEC016", name: "HEMA VARSHINI.A" },
-            { rollNo: "25UEC018", name: "HARSHINI.S" },
-            { rollNo: "25UEC020", name: "KARTHIKEYAN.P" },
-            { rollNo: "25UEC022", name: "DHARUNYASRI.G" },
-            { rollNo: "25UEC023", name: "HIBSA FARITH.S.H" },
-            { rollNo: "25UEC024", name: "DHAKSHANA.K" },
-            { rollNo: "25UEC026", name: "ABISHEK.S" },
-            { rollNo: "25UEC028", name: "HARSHINI.S.D" },
-            { rollNo: "25UEC030", name: "HARI CHARAN.S.P" },
-            { rollNo: "25UEC032", name: "SAKTHI DIVASHKAR.M" },
-            { rollNo: "25UEC036", name: "HARISH KARTHI.R" },
-            { rollNo: "25UEC038", name: "BALAJI.N" },
-            { rollNo: "25UEC040", name: "NITESH VARMAN.M" },
-            { rollNo: "25UEC042", name: "MAHENDRAN.N.P" },
-            { rollNo: "25UEC044", name: "VENKATAPRIYA.S" },
-            { rollNo: "25UEC046", name: "YUVASRI.K" },
-            { rollNo: "25UEC048", name: "SUJITHA.J.T" },
-            { rollNo: "25UEC050", name: "PATHMASINDHUJA.K" },
-            { rollNo: "25UEC051", name: "LAKSHMI.L" },
-            { rollNo: "25UEC052", name: "BOOPESH.K.V" },
-            { rollNo: "25UEC054", name: "SENTHAMILSELVI.M" },
-            { rollNo: "25UEC056", name: "KHAN MOHAMED.S" },
-            { rollNo: "25UEC057", name: "SWETHA ROSE.S" },
-            { rollNo: "25UEC058", name: "VIMAL.V.S" },
-            { rollNo: "25UEC059", name: "RAHUL.P" },
-            { rollNo: "25UEC062", name: "MOHAMED YUNUS.R" },
-            { rollNo: "25UEC064", name: "PRIYADHARSHINI.K" },
-            { rollNo: "25UEC066", name: "HARIHARAN.S" },
-            { rollNo: "25UEC067", name: "YATHEESHWAR.B.R" },
-            { rollNo: "25UEC068", name: "LATHIKA.S" },
-            { rollNo: "25UEC069", name: "DEVIPRIYA.T" },
-            { rollNo: "25UEC074", name: "SANTHOSHKANNA.S" },
-            { rollNo: "25UEC075", "name": "ABINESH MILTON.T" },
-            { rollNo: "25UEC076", "name": "DIVYESH SANKAR.N.K" },
-            { rollNo: "25UEC082", "name": "GOKUL.S" },
-            { rollNo: "25UEC083", "name": "YOGAHARANI.A" },
-            { rollNo: "25UEC085", "name": "MAGATHI.M" },
-            { rollNo: "25UEC086", "name": "SHRUTI.K" },
-            { rollNo: "25UEC089", "name": "MATTHEW PAULS.A" },
-            { rollNo: "25UEC092", "name": "GURU VIGNESHWARAN.S" },
-            { rollNo: "25UEC096", "name": "BIRUNTHA.J" },
-            { rollNo: "25UEC102", "name": "MAHALAKSHMI.G" },
-            { rollNo: "25UEC103", "name": "UMA MAHESWARI.M" },
-            { rollNo: "25UEC107", "name": "YOGESH.K" },
-            { rollNo: "25UEC108", "name": "GAUTHAM.S" },
-            { rollNo: "25UEC109", "name": "SRIMATHI.B" },
-            { rollNo: "25UEC110", "name": "PRINCE VICTOR.A" },
-            { rollNo: "25UEC111", "name": "PRATHIKSHA.M.P" },
-            { rollNo: "25UEC113", "name": "DINESHPANDI.R" },
-            { rollNo: "25UEC115", "name": "YAZHINI.M" },
-            { rollNo: "25UEC116", "name": "HARSHVARDHAN.S" },
-            { rollNo: "25UEC117", "name": "MOHAMMED SALMANKHAN.N" },
-            { rollNo: "25UEC120", "name": "DEEPIKA SRI.R.K" },
+            { rollNo: "25UEC002", name: "NAVANEETHA KRISHNAN.R" }, { rollNo: "25UEC004", name: "ALLEN VICTOR.A" }, { rollNo: "25UEC006", name: "HARSHITHAA SHREE.R" }, { rollNo: "25UEC008", name: "KARTHICK PANDIYAN.M" }, { rollNo: "25UEC010", name: "KABILVISHWA.TM" }, { rollNo: "25UEC012", name: "HARI PRASATH.G" }, { rollNo: "25UEC014", name: "SHARMILA.J" }, { rollNo: "25UEC016", name: "HEMA VARSHINI.A" }, { rollNo: "25UEC018", name: "HARSHINI.S" }, { rollNo: "25UEC020", name: "KARTHIKEYAN.P" }, { rollNo: "25UEC022", name: "DHARUNYASRI.G" }, { rollNo: "25UEC023", name: "HIBSA FARITH.S.H" }, { rollNo: "25UEC024", name: "DHAKSHANA.K" }, { rollNo: "25UEC026", name: "ABISHEK.S" }, { rollNo: "25UEC028", name: "HARSHINI.S.D" }, { rollNo: "25UEC030", name: "HARI CHARAN.S.P" }, { rollNo: "25UEC032", name: "SAKTHI DIVASHKAR.M" }, { rollNo: "25UEC036", name: "HARISH KARTHI.R" }, { rollNo: "25UEC038", name: "BALAJI.N" }, { rollNo: "25UEC040", name: "NITESH VARMAN.M" }, { rollNo: "25UEC042", name: "MAHENDRAN.N.P" }, { rollNo: "25UEC044", name: "VENKATAPRIYA.S" }, { rollNo: "25UEC046", name: "YUVASRI.K" }, { rollNo: "25UEC048", name: "SUJITHA.J.T" }, { rollNo: "25UEC050", name: "PATHMASINDHUJA.K" }, { rollNo: "25UEC051", name: "LAKSHMI.L" }, { rollNo: "25UEC052", name: "BOOPESH.K.V" }, { rollNo: "25UEC054", name: "SENTHAMILSELVI.M" }, { rollNo: "25UEC056", name: "KHAN MOHAMED.S" }, { rollNo: "25UEC057", name: "SWETHA ROSE.S" }, { rollNo: "25UEC058", name: "VIMAL.V.S" }, { rollNo: "25UEC059", name: "RAHUL.P" }, { rollNo: "25UEC062", name: "MOHAMED YUNUS.R" }, { rollNo: "25UEC064", name: "PRIYADHARSHINI.K" }, { rollNo: "25UEC066", name: "HARIHARAN.S" }, { rollNo: "25UEC067", name: "YATHEESHWAR.B.R" }, { rollNo: "25UEC068", name: "LATHIKA.S" }, { rollNo: "25UEC069", name: "DEVIPRIYA.T" }, { rollNo: "25UEC074", name: "SANTHOSHKANNA.S" }, { rollNo: "25UEC075", name: "ABINESH MILTON.T" }, { rollNo: "25UEC076", name: "DIVYESH SANKAR.N.K" }, { rollNo: "25UEC082", name: "GOKUL.S" }, { rollNo: "25UEC083", name: "YOGAHARANI.A" }, { rollNo: "25UEC085", name: "MAGATHI.M" }, { rollNo: "25UEC086", name: "SHRUTI.K" }, { rollNo: "25UEC089", name: "MATTHEW PAULS.A" }, { rollNo: "25UEC092", name: "GURU VIGNESHWARAN.S" }, { rollNo: "25UEC096", name: "BIRUNTHA.J" }, { rollNo: "25UEC102", name: "MAHALAKSHMI.G" }, { rollNo: "25UEC103", name: "UMA MAHESWARI.M" }, { rollNo: "25UEC107", name: "YOGESH.K" }, { rollNo: "25UEC108", name: "GAUTHAM.S" }, { rollNo: "25UEC109", name: "SRIMATHI.B" }, { rollNo: "25UEC110", name: "PRINCE VICTOR.A" }, { rollNo: "25UEC111", name: "PRATHIKSHA.M.P" }, { rollNo: "25UEC113", name: "DINESHPANDI.R" }, { rollNo: "25UEC115", name: "YAZHINI.M" }, { rollNo: "25UEC116", name: "HARSHVARDHAN.S" }, { rollNo: "25UEC117", name: "MOHAMMED SALMANKHAN.N" }, { rollNo: "25UEC120", name: "DEEPIKA SRI.R.K" }
         ];
-
-        const memberEntries = membersList.map((m, i) => ({
-            roll_no: m.rollNo,
-            name: m.name,
-            attendance_order: i + 1,
-            photo_url: `https://picsum.photos/seed/${m.rollNo}/200/200`
-        }));
-
-        const holidayEntries = [
-            { date: '2026-02-14', reason: 'Weekend' },
-            { date: '2026-02-15', reason: 'Weekend' },
-            { date: '2026-02-22', reason: 'Weekend' },
-            { date: '2026-02-23', reason: 'Holiday' },
-            { date: '2026-02-28', reason: 'Weekend' },
-            { date: '2026-03-01', reason: 'Sunday' },
-            { date: '2026-03-07', reason: 'Annual Day' },
-            { date: '2026-03-08', reason: 'Hostel Day' },
-            { date: '2026-03-12', reason: 'Cycle Test I' },
-            { date: '2026-03-13', reason: 'Cycle Test I' },
-            { date: '2026-03-14', reason: 'Cycle Test I' },
-            { date: '2026-03-15', reason: 'Sunday' },
-            { date: '2026-03-16', reason: 'Cycle Test I' },
-            { date: '2026-03-17', reason: 'Cycle Test I' },
-            { date: '2026-03-18', reason: 'Cycle Test I' },
-            { date: '2026-03-19', reason: 'Telugu New Year' },
-            { date: '2026-03-20', reason: 'Additional Holiday' },
-            { date: '2026-03-21', reason: 'Ramzan' },
-            { date: '2026-03-22', reason: 'Sunday' },
-            { date: '2026-03-28', reason: "Funtura' 26" },
-            { date: '2026-03-29', reason: 'Sunday' },
-            { date: '2026-04-02', reason: 'Parent Teachers Meeting' },
-            { date: '2026-04-03', reason: 'Good Friday' },
-            { date: '2026-04-04', reason: 'Holiday' },
-            { date: '2026-04-05', reason: 'Sunday' },
-            { date: '2026-04-06', reason: 'Pongal Festival' },
-            { date: '2026-04-07', reason: 'Pongal Festival' },
-            { date: '2026-04-11', reason: 'Sustainathon' },
-            { date: '2026-04-12', reason: 'Sunday' },
-            { date: '2026-04-14', reason: 'Tamil New Year' },
-            { date: '2026-04-18', reason: 'Ethnic Day' },
-            { date: '2026-04-19', reason: 'Sunday' },
-            { date: '2026-04-25', reason: 'Seminar Day' },
-            { date: '2026-04-26', reason: 'Sunday' },
-            { date: '2026-04-27', reason: 'Feedback Day' },
-            { date: '2026-04-30', reason: 'Model Practical' }
-        ];
-
-        const icebreakerEntries = [
-            { name: 'Electric Pulse', description: 'A high-energy reaction game.' },
-            { name: 'Guess the Name', description: 'Identify the member from clues.' },
-            { name: 'Get the Signature', description: 'Networking and social bingo.' },
-            { name: 'Enact the Word', description: 'Charades-style communication game.' },
-        ];
-
-        const announcementEntries = [
-            { title: 'Welcome to ECE_B Toastmasters', content: 'We are excited to launch our new digital platform.', date: '2026-02-28', type: 'info' }
-        ];
-
-        // Perform upserts to avoid duplication
-        await Promise.all([
-            supabase.from('members').upsert(memberEntries, { onConflict: 'roll_no' }),
-            supabase.from('holidays').upsert(holidayEntries, { onConflict: 'date' }),
-            supabase.from('icebreaker_bank').upsert(icebreakerEntries, { onConflict: 'name' }),
-            supabase.from('announcements').upsert(announcementEntries, { onConflict: 'title' }) // Upserting by title as a crude unique key
-        ]);
+        const mEntries = membersList.map((m, i) => ({ roll_no: m.rollNo, name: m.name, attendance_order: i + 1, photo_url: `https://picsum.photos/seed/${m.rollNo}/200/200` }));
+        const hEntries = [{ date: '2026-02-14', reason: 'Weekend' }, { date: '2026-02-15', reason: 'Weekend' }, { date: '2026-02-22', reason: 'Weekend' }, { date: '2026-02-23', reason: 'Holiday' }, { date: '2026-02-28', reason: 'Weekend' }, { date: '2026-03-01', reason: 'Sunday' }, { date: '2026-03-07', reason: 'Annual Day' }, { date: '2026-03-08', reason: 'Hostel Day' }, { date: '2026-03-12', reason: 'Cycle Test I' }, { date: '2026-03-13', reason: 'Cycle Test I' }, { date: '2026-03-14', reason: 'Cycle Test I' }, { date: '2026-03-15', reason: 'Sunday' }, { date: '2026-03-16', reason: 'Cycle Test I' }, { date: '2026-03-17', reason: 'Cycle Test I' }, { date: '2026-03-18', reason: 'Cycle Test I' }, { date: '2026-03-19', reason: 'Telugu New Year' }, { date: '2026-03-20', reason: 'Additional Holiday' }, { date: '2026-03-21', reason: 'Ramzan' }, { date: '2026-03-22', reason: 'Sunday' }, { date: '2026-03-28', reason: "Funtura' 26" }, { date: '2026-03-29', reason: 'Sunday' }, { date: '2026-04-02', reason: 'PTM' }, { date: '2026-04-03', reason: 'Good Friday' }, { date: '2026-04-04', reason: 'Holiday' }, { date: '2026-04-05', reason: 'Sunday' }, { date: '2026-04-06', reason: 'Pongal' }, { date: '2026-04-07', reason: 'Pongal' }, { date: '2026-04-11', reason: 'Sustainathon' }, { date: '2026-04-12', reason: 'Sunday' }, { date: '2026-04-14', reason: 'Tamil New Year' }, { date: '2026-04-18', reason: 'Ethnic Day' }, { date: '2026-04-19', reason: 'Sunday' }, { date: '2026-04-25', reason: 'Seminar Day' }, { date: '2026-04-26', reason: 'Sunday' }, { date: '2026-04-27', reason: 'Feedback Day' }, { date: '2026-04-30', reason: 'Model Practical' }];
+        await Promise.all([supabase.from('members').upsert(mEntries, { onConflict: 'roll_no' }), supabase.from('holidays').upsert(hEntries, { onConflict: 'date' })]);
     }
 };
