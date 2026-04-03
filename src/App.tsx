@@ -405,6 +405,17 @@ export default function App() {
     }
   };
 
+  const deleteAnnouncement = async (id: number) => {
+    if (!confirm('Are you sure you want to permanently delete this dispatch?')) return;
+    try {
+      await supabaseService.deleteAnnouncement(id);
+      fetchData();
+    } catch (error) {
+      console.error('Error deleting announcement:', error);
+      alert('Failed to delete dispatch.');
+    }
+  };
+
   const generateSchedule = async (startDate?: string) => {
     // Only set loading if not already in a loading sequence
     const wasLoading = loading;
@@ -953,6 +964,18 @@ export default function App() {
                           <div className={cn("flex-1 pb-8 border-b", isDarkMode ? "border-white/5" : "border-black/5")}>
                             <div className="flex justify-between items-baseline mb-4">
                               <h4 className={cn("text-2xl font-serif font-medium group-hover:italic transition-all", isDarkMode ? "text-white/90" : "text-black/90")}>{ann.title}</h4>
+                              {isAdminLoggedIn && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    deleteAnnouncement(ann.id);
+                                  }}
+                                  className="text-red-500 hover:text-red-600 transition-colors p-2 rounded-full hover:bg-red-500/10"
+                                  title="Delete Dispatch"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              )}
                             </div>
                             <p className={cn("text-sm leading-relaxed max-w-2xl opacity-50", isDarkMode ? "text-white" : "text-black")}>{ann.content}</p>
                           </div>

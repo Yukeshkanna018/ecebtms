@@ -159,6 +159,14 @@ export const supabaseService = {
         if (error) throw error;
     },
 
+    async deleteAnnouncement(id: number) {
+        const { error } = await supabase
+            .from('announcements')
+            .delete()
+            .eq('id', id);
+        if (error) throw error;
+    },
+
     async getQueries() {
         const { data, error } = await supabase
             .from('queries')
