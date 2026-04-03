@@ -93,6 +93,9 @@ export default function App() {
   const [newHolidayDateInput, setNewHolidayDateInput] = useState('');
   const [isGeneratingMonth, setIsGeneratingMonth] = useState(false);
   const [generateMonthSuccess, setGenerateMonthSuccess] = useState(false);
+  const [announcementForm, setAnnouncementForm] = useState({ title: '', content: '', type: 'info' as 'info' | 'event' | 'warning' });
+  const [announcementSubmitting, setAnnouncementSubmitting] = useState(false);
+  const [announcementSuccess, setAnnouncementSuccess] = useState(false);
   
   // Special Case Override state
   const [specialCaseForm, setSpecialCaseForm] = useState({
@@ -383,6 +386,22 @@ export default function App() {
     } catch (error) {
       console.error('Error deleting query:', error);
       alert('Failed to delete query.');
+    }
+  };
+
+  const submitAnnouncement = async (e: FormEvent) => {
+    e.preventDefault();
+    setAnnouncementSubmitting(true);
+    try {
+      await supabaseService.submitAnnouncement(announcementForm.title, announcementForm.content, announcementForm.type);
+      setAnnouncementSuccess(true);
+      setAnnouncementForm({ title: '', content: '', type: 'info' });
+      fetchData();
+      setTimeout(() => setAnnouncementSuccess(false), 3000);
+    } catch (error) {
+      console.error('Error submitting announcement:', error);
+    } finally {
+      setAnnouncementSubmitting(false);
     }
   };
 
@@ -2188,6 +2207,25 @@ export default function App() {
                       Pick a month, add any holidays (no meetings on those days), then generate.
                     </p>
                     <form onSubmit={handleGenerateMonthSchedule} className="space-y-5">
+                      {generateMonthForm.year === '2026' && parseInt(generateMonthForm.month) >= 4 || parseInt(generateMonthForm.year) > 2026 ? (
+                        <div className="p-4 rounded-2xl bg-purple-50 border border-purple-100 animate-in fade-in slide-in-from-top-1">
+                          <p className="text-[10px] text-purple-700 font-bold uppercase tracking-widest mb-1 flex items-center gap-2">
+                             <RefreshCw className="w-3 h-3 animate-spin-slow" /> Dynamic Shuffle Algorithm Active
+                          </p>
+                          <p className="text-[9px] text-purple-600/70 leading-relaxed italic">
+                            For April 2026 and beyond, the system shuffles all members daily to maximize variety and minimize repetitive teammates/roles.
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="p-4 rounded-2xl bg-amber-50 border border-amber-100">
+                          <p className="text-[10px] text-amber-700 font-bold uppercase tracking-widest mb-1">
+                             Fixed Batch Rotation Active
+                          </p>
+                          <p className="text-[9px] text-amber-600/70 leading-relaxed italic">
+                            For Feb/March 2026, the system uses the 4-batch fixed rotation sequence.
+                          </p>
+                        </div>
+                      )}
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                           <label className="text-[10px] uppercase tracking-widest font-bold opacity-40 ml-4">Month</label>
@@ -2642,6 +2680,83 @@ export default function App() {
                         className="w-full bg-red-500 text-white py-4 rounded-2xl font-bold text-xs tracking-widest uppercase hover:bg-red-600 transition-all shadow-lg shadow-red-500/20"
                       >
                         {isDeletingMonth ? 'Deleting...' : 'Delete Month Schedule'}
+                      </button>
+                    </form>
+                  </div>
+
+                  <div className={cn(
+                    "p-8 rounded-[40px] border space-y-6 relative overflow-hidden",
+                    isDarkMode ? "bg-white/5 border-white/10" : "bg-white border-black/5 shadow-sm"
+                  )}>
+                    <AnimatePresence>
+                      {announcementSuccess && (
+                        <motion.div
+                          initial={{ opacity: 0, y: -20 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -20 }}
+                          className="absolute inset-x-0 top-0 bg-emerald-500 text-white py-2 text-center text-[8px] uppercase tracking-widest font-bold z-10"
+                        >
+                          Announcement Sent Successfully
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                    <div className="flex items-center gap-3">
+                      <Send className="w-5 h-5 text-[#5A5A40]" />
+                      <h4 className="text-xs uppercase tracking-[0.2em] font-bold text-[#5A5A40]">Make an Announcement</h4>
+                    </div>
+                    <p className="text-[10px] opacity-40 leading-relaxed">
+                      This will be visible to all members on the Home page under Latest Dispatches.
+                    </p>
+                    <form onSubmit={submitAnnouncement} className="space-y-4">
+                      <div className="space-y-2">
+                        <label className="text-[10px] uppercase tracking-widest font-bold opacity-40 ml-4">Title</label>
+                        <input
+                          type="text"
+                          required
+                          value={announcementForm.title}
+                          onChange={(e) => setAnnouncementForm(prev => ({ ...prev, title: e.target.value }))}
+                          placeholder="e.g. Venue Change"
+                          className={cn(
+                            "w-full px-6 py-3 rounded-2xl border transition-all outline-none",
+                            isDarkMode ? "bg-black/40 border-white/10 text-white" : "bg-[#F5F5F0] border-black/5 text-black"
+                          )}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[10px] uppercase tracking-widest font-bold opacity-40 ml-4">Content</label>
+                        <textarea
+                          required
+                          rows={3}
+                          value={announcementForm.content}
+                          onChange={(e) => setAnnouncementForm(prev => ({ ...prev, content: e.target.value }))}
+                          placeholder="Details of the announcement..."
+                          className={cn(
+                            "w-full px-6 py-3 rounded-2xl border transition-all outline-none resize-none",
+                            isDarkMode ? "bg-black/40 border-white/10 text-white" : "bg-[#F5F5F0] border-black/5 text-black"
+                          )}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[10px] uppercase tracking-widest font-bold opacity-40 ml-4">Type</label>
+                        <select
+                          value={announcementForm.type}
+                          onChange={(e) => setAnnouncementForm(prev => ({ ...prev, type: e.target.value as any }))}
+                          className={cn(
+                            "w-full px-6 py-3 rounded-2xl border transition-all outline-none",
+                            isDarkMode ? "bg-black/40 border-white/10 text-white" : "bg-[#F5F5F0] border-black/5 text-black"
+                          )}
+                        >
+                          <option value="info">Info</option>
+                          <option value="event">Event</option>
+                          <option value="warning">Warning</option>
+                        </select>
+                      </div>
+                      <button
+                        type="submit"
+                        disabled={announcementSubmitting}
+                        className="w-full bg-[#5A5A40] text-white py-3 rounded-2xl font-bold text-xs tracking-widest uppercase hover:bg-[#4A4A30] transition-all disabled:opacity-50"
+                      >
+                        {announcementSubmitting ? 'Sending...' : 'Publish Announcement'}
                       </button>
                     </form>
                   </div>

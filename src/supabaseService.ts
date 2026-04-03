@@ -152,6 +152,13 @@ export const supabaseService = {
         return data;
     },
 
+    async submitAnnouncement(title: string, content: string, type: 'info' | 'event' | 'warning') {
+        const { error } = await supabase
+            .from('announcements')
+            .insert({ title, content, type, date: new Date().toISOString() });
+        if (error) throw error;
+    },
+
     async getQueries() {
         const { data, error } = await supabase
             .from('queries')
