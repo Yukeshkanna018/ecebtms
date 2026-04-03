@@ -938,7 +938,7 @@ export default function App() {
                     <h3 className={cn("text-[10px] uppercase tracking-[0.4em] font-bold", isDarkMode ? "text-white/60" : "text-[#5A5A40]")}>Latest Dispatches</h3>
                   </div>
                   <div className="space-y-8">
-                    {Array.isArray(announcements) && announcements.length > 0 ? announcements.map((ann, i) => (
+                    {Array.isArray(announcements) && announcements.length > 0 ? announcements.filter((a, _, arr) => arr.length === 1 || !a.title.toLowerCase().startsWith('welcome to ece')).map((ann, i) => (
                       <motion.div
                         key={i}
                         initial={{ opacity: 0, x: -20 }}
