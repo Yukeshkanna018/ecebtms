@@ -559,19 +559,42 @@ export const supabaseService = {
 
             // Handle Backups
             const assignedIds = new Set(newEntries.filter(e => e.date === dateStr).map(e => e.original_member_id));
-            const backupCandidates = members
-                .filter(m => !assignedIds.has(m.id))
-                .sort((a, b) => (sessionParticipation[a.id] || 0) - (sessionParticipation[b.id] || 0));
             
-            backupCandidates.slice(0, 3).forEach((b, bIdx) => {
-                newEntries.push({
-                    date: dateStr,
-                    role_id: `BACKUP_${bIdx + 1}`,
-                    original_member_id: b.id,
-                    current_member_id: b.id,
-                    status: 'scheduled'
+            if (overrideBatch) {
+                // If using explicit batches, strictly pull backups from the next batch
+                const effectiveCount = (overrideBatch.stepIdx * 4) + overrideBatch.setIdx + meetingNumSinceStart;
+                const setIdx = effectiveCount % 4;
+                let bIdx = 0, offset = 0;
+                while (bIdx < 3 && offset < members.length) {
+                    const backupMember = members[((setIdx + 1) % 4 * 15 + offset) % members.length];
+                    if (backupMember && !assignedIds.has(backupMember.id)) {
+                        newEntries.push({
+                            date: dateStr,
+                            role_id: `BACKUP_${bIdx + 1}`,
+                            original_member_id: backupMember.id,
+                            current_member_id: backupMember.id,
+                            status: 'scheduled'
+                        });
+                        bIdx++;
+                    }
+                    offset++;
+                }
+            } else {
+                // Fallback to pool-based backups
+                const backupCandidates = members
+                    .filter(m => !assignedIds.has(m.id))
+                    .sort((a, b) => (sessionParticipation[a.id] || 0) - (sessionParticipation[b.id] || 0));
+                
+                backupCandidates.slice(0, 3).forEach((b, bIdx) => {
+                    newEntries.push({
+                        date: dateStr,
+                        role_id: `BACKUP_${bIdx + 1}`,
+                        original_member_id: b.id,
+                        current_member_id: b.id,
+                        status: 'scheduled'
+                    });
                 });
-            });
+            }
 
             meetingNumSinceStart++;
             currentDate = addDays(currentDate, 1);
