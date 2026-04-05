@@ -1557,10 +1557,16 @@ export default function App() {
             )}
 
             <div className="mt-16 border-t border-black/5 pt-12 grid grid-cols-1 md:grid-cols-3 gap-12">
-              <div className="md:col-span-2">
+              <div>
                 <h4 className="text-xs uppercase tracking-[0.2em] font-bold text-[#5A5A40] mb-4">Absentee Rule</h4>
                 <p className="text-sm text-[#5A5A40]/70 leading-relaxed font-serif">
                   If a role player is absent, their role is immediately filled by a backup from the three available members of the next batch.
+                </p>
+              </div>
+              <div>
+                <h4 className="text-xs uppercase tracking-[0.2em] font-bold text-[#5A5A40] mb-4">Return Rule</h4>
+                <p className="text-sm text-[#5A5A40]/70 leading-relaxed font-serif">
+                  When the absent member returns, they take over the next scheduled role of the backup player who replaced them, ensuring fair rotation.
                 </p>
               </div>
               <div>

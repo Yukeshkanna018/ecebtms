@@ -333,6 +333,44 @@ export const supabaseService = {
                 status: 'scheduled'
             }).eq('id', scheduleId);
 
+            const { data: futureMeetings } = await supabase
+                .from('schedule')
+                .select('date')
+                .gt('date', entry.date)
+                .order('date', { ascending: true });
+
+            const uniqueDates = Array.from(new Set(futureMeetings?.map(m => m.date) || []));
+            let targetDate = null;
+            for (const date of uniqueDates) {
+                const { data: rolesOnDate } = await supabase
+                    .from('schedule')
+                    .select('id, role_id')
+                    .eq('date', date)
+                    .eq('original_member_id', absenteeMemberId);
+
+                const isFree = !rolesOnDate || rolesOnDate.length === 0 || rolesOnDate.every(r => r.role_id.startsWith('BACKUP_'));
+                if (isFree) {
+                    targetDate = date;
+                    break;
+                }
+            }
+
+            if (targetDate) {
+                const { data: backupRoleToTake } = await supabase
+                    .from('schedule')
+                    .select('id')
+                    .eq('date', targetDate)
+                    .eq('original_member_id', backupMemberId)
+                    .single();
+
+                if (backupRoleToTake) {
+                    await supabase.from('schedule').update({
+                        current_member_id: absenteeMemberId,
+                        is_substitution: true,
+                        replaced_by_id: backupMemberId
+                    }).eq('id', backupRoleToTake.id);
+                }
+            }
         } else {
             await supabase.from('schedule').update({ status: 'absent' }).eq('id', scheduleId);
         }
@@ -366,6 +404,18 @@ export const supabaseService = {
             if (backupPlaceholder) {
                 await supabase.from('schedule').update({ status: newStatus }).eq('id', backupPlaceholder.id);
             }
+
+            const absenteeMemberId = entry.original_member_id;
+
+            await supabase.from('schedule').update({
+                current_member_id: backupMemberId,
+                is_substitution: false,
+                replaced_by_id: null
+            })
+                .gt('date', entry.date)
+                .eq('original_member_id', backupMemberId)
+                .eq('current_member_id', absenteeMemberId)
+                .eq('replaced_by_id', backupMemberId);
         }
 
         await supabase.from('schedule').update({
