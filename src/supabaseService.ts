@@ -579,9 +579,15 @@ export const supabaseService = {
                 // If using explicit batches, strictly pull backups from the next batch
                 const effectiveCount = (overrideBatch.stepIdx * 4) + overrideBatch.setIdx + meetingNumSinceStart;
                 const setIdx = effectiveCount % 4;
-                let bIdx = 0, offset = 0;
-                while (bIdx < 3 && offset < members.length) {
-                    const backupMember = members[((setIdx + 1) % 4 * 15 + offset) % members.length];
+                // Cycle number = how many full rounds of all 4 batches have completed
+                // Each cycle, shift backup starting position by 3 within the next batch (0→3→6→9→12)
+                const cycleNumber = Math.floor(effectiveCount / 4);
+                const backupStartOffset = (cycleNumber % 5) * 3;
+                const nextBatchStart = ((setIdx + 1) % 4) * 15;
+                console.log(`  Backup cycle #${cycleNumber}: picking positions ${backupStartOffset}-${backupStartOffset + 2} from next batch (starting at member index ${nextBatchStart})`);
+                let bIdx = 0, offset = backupStartOffset;
+                while (bIdx < 3 && offset < 15) {
+                    const backupMember = members[nextBatchStart + offset];
                     if (backupMember && !assignedIds.has(backupMember.id)) {
                         newEntries.push({
                             date: dateStr,
