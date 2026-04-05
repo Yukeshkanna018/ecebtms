@@ -2350,7 +2350,7 @@ export default function App() {
                           <option value={4}>Slot 4 — Members 10, 11, 12 of next batch</option>
                           <option value={5}>Slot 5 — Members 13, 14, 15 of next batch</option>
                         </select>
-                        <p className="text-[10px] opacity-30 ml-4">Cycle 1 = Slot 1, Cycle 2 = Slot 2, etc. First cycle ended in March → April should use Slot 2.</p>
+                        <p className="text-[10px] opacity-30 ml-4">Auto: From Apr 8 = Slot 2, advances every 4 meetings (1 full batch cycle). Apr 8–13 = Slot 2 → Apr 15 = Slot 3 → etc.</p>
                       </div>
 
 

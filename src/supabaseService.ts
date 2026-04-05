@@ -480,6 +480,16 @@ export const supabaseService = {
         const { data: priorMeetings } = await supabase.from('schedule').select('date').lt('date', startDate).not('role_id', 'like', 'BACKUP_%');
         const baseMeetingCount = new Set((priorMeetings || []).map((m: any) => m.date)).size;
 
+        // Backup slot anchor: Cycle 1 (Feb 11 - Apr 7) = Slot 1. From Apr 8 onwards = Slot 2.
+        // The slot increments every 4 meetings (one full round through all 4 batches).
+        const BACKUP_ANCHOR_DATE = '2026-04-08';
+        const BACKUP_ANCHOR_SLOT = 2; // 1-indexed slot at anchor date
+        // Count existing meetings in DB from anchor date up to (not including) startDate
+        const { data: anchorMeetingsData } = await supabase.from('schedule')
+            .select('date').gte('date', BACKUP_ANCHOR_DATE).lt('date', startDate).not('role_id', 'like', 'BACKUP_%');
+        const baseMeetingsSinceAnchor = new Set((anchorMeetingsData || []).map((m: any) => m.date)).size;
+        let meetingsSinceAnchorInThisRun = 0; // counts meetings >= anchor date processed in this generation run
+
         for (let i = 0; i < daysToGenerate; i++) {
             if (!isSingleDay && isStartOfMonth && currentDate.getMonth() !== targetMonth) break;
             const dateStr = format(currentDate, "yyyy-MM-dd");
@@ -581,13 +591,24 @@ export const supabaseService = {
                 const setIdx = effectiveCount % 4;
                 const nextBatchStart = ((setIdx + 1) % 4) * 15;
 
-                // Cycle number = how many full rounds of all 4 batches have completed globally
-                // Use baseMeetingCount so March's completed cycle is counted, not just current run
-                const globalMeetingCount = baseMeetingCount + meetingNumSinceStart;
-                // If admin manually overrides backup slot (1-5), use that; otherwise auto-compute
-                const cycleNumber = backupSlotOverride !== undefined ? backupSlotOverride - 1 : Math.floor(globalMeetingCount / 4);
+                // BACKUP SLOT LOGIC:
+                // Anchor: Apr 8, 2026 = Slot 2. Slot advances every 4 meetings (1 full batch cycle).
+                // If admin overrides slot manually, use that directly.
+                let cycleNumber: number;
+                if (backupSlotOverride !== undefined) {
+                    // Admin manually picked a slot (1-5), convert to 0-indexed cycle number
+                    cycleNumber = backupSlotOverride - 1;
+                } else if (dateStr >= BACKUP_ANCHOR_DATE) {
+                    // Auto: count meetings since anchor, divide by 4 to get completed cycles
+                    const totalMeetingsSinceAnchor = baseMeetingsSinceAnchor + meetingsSinceAnchorInThisRun;
+                    const extraCycles = Math.floor(totalMeetingsSinceAnchor / 4);
+                    cycleNumber = (BACKUP_ANCHOR_SLOT - 1) + extraCycles; // e.g. Apr 8: 1+0=1, Apr 15: 1+1=2
+                } else {
+                    cycleNumber = 0; // Before Apr 8 anchor = Slot 1
+                }
+
                 const backupStartOffset = (cycleNumber % 5) * 3;
-                console.log(`  Backup cycle #${cycleNumber} (global meeting #${globalMeetingCount}): picking positions ${backupStartOffset}-${backupStartOffset + 2} from next batch (start index ${nextBatchStart})`);
+                console.log(`  Backup: date=${dateStr}, meetings since anchor=${baseMeetingsSinceAnchor + meetingsSinceAnchorInThisRun}, slot=${cycleNumber + 1}, offset=${backupStartOffset} (members ${backupStartOffset + 1}-${backupStartOffset + 3} of next batch)`);
 
                 let bIdx = 0, offset = backupStartOffset;
                 while (bIdx < 3 && offset < 15) {
@@ -620,6 +641,9 @@ export const supabaseService = {
                     });
                 });
             }
+
+            // Track meetings since anchor for next iteration's backup slot calculation
+            if (dateStr >= BACKUP_ANCHOR_DATE) meetingsSinceAnchorInThisRun++;
 
             meetingNumSinceStart++;
             currentDate = addDays(currentDate, 1);
