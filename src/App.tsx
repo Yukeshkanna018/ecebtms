@@ -2331,7 +2331,7 @@ export default function App() {
 
                       {/* Backup Slot Override */}
                       <div className="space-y-2">
-                        <label className="text-[10px] uppercase tracking-widest font-bold opacity-40 ml-4">Backup Members Slot</label>
+                        <label className="text-[10px] uppercase tracking-widest font-bold opacity-40 ml-4">Starting Backup Slot</label>
                         <select
                           value={generateMonthBackupSlot ?? 0}
                           onChange={(e) => {
@@ -2343,14 +2343,14 @@ export default function App() {
                             isDarkMode ? "bg-black/40 border-white/10 text-white" : "bg-[#F5F5F0] border-black/5 text-black"
                           )}
                         >
-                          <option value={0}>Auto (based on meeting count)</option>
-                          <option value={1}>Slot 1 — Members 1, 2, 3 of next batch</option>
-                          <option value={2}>Slot 2 — Members 4, 5, 6 of next batch</option>
-                          <option value={3}>Slot 3 — Members 7, 8, 9 of next batch</option>
-                          <option value={4}>Slot 4 — Members 10, 11, 12 of next batch</option>
-                          <option value={5}>Slot 5 — Members 13, 14, 15 of next batch</option>
+                          <option value={0}>Auto (based on meeting history)</option>
+                          <option value={1}>Start from Slot 1 — Members 1, 2, 3 of next batch</option>
+                          <option value={2}>Start from Slot 2 — Members 4, 5, 6 of next batch</option>
+                          <option value={3}>Start from Slot 3 — Members 7, 8, 9 of next batch</option>
+                          <option value={4}>Start from Slot 4 — Members 10, 11, 12 of next batch</option>
+                          <option value={5}>Start from Slot 5 — Members 13, 14, 15 of next batch</option>
                         </select>
-                        <p className="text-[10px] opacity-30 ml-4">Auto: From Apr 8 = Slot 2, advances every 4 meetings (1 full batch cycle). Apr 8–13 = Slot 2 → Apr 15 = Slot 3 → etc.</p>
+                        <p className="text-[10px] opacity-30 ml-4">The backup slot rotates every 4 meetings (one full batch cycle). Auto: Starts from Slot 2 on April 8th.</p>
                       </div>
 
 

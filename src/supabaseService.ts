@@ -596,13 +596,13 @@ export const supabaseService = {
                 // If admin overrides slot manually, use that directly.
                 let cycleNumber: number;
                 if (backupSlotOverride !== undefined) {
-                    // Admin manually picked a slot (1-5), convert to 0-indexed cycle number
-                    cycleNumber = backupSlotOverride - 1;
+                    // Manual: Starts from the selected slot and rotates every 4 meetings in this run
+                    cycleNumber = (backupSlotOverride - 1) + Math.floor(meetingNumSinceStart / 4);
                 } else if (dateStr >= BACKUP_ANCHOR_DATE) {
                     // Auto: count meetings since anchor, divide by 4 to get completed cycles
                     const totalMeetingsSinceAnchor = baseMeetingsSinceAnchor + meetingsSinceAnchorInThisRun;
                     const extraCycles = Math.floor(totalMeetingsSinceAnchor / 4);
-                    cycleNumber = (BACKUP_ANCHOR_SLOT - 1) + extraCycles; // e.g. Apr 8: 1+0=1, Apr 15: 1+1=2
+                    cycleNumber = (BACKUP_ANCHOR_SLOT - 1) + extraCycles;
                 } else {
                     cycleNumber = 0; // Before Apr 8 anchor = Slot 1
                 }
