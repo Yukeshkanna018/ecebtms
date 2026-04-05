@@ -445,7 +445,7 @@ export const supabaseService = {
         await supabase.from('daily_theme').delete().gte('date', start).lte('date', end);
     },
 
-    async generateSchedule(startDate: string, overrideBatch?: { setIdx: number, stepIdx: number }, isSingleDay?: boolean) {
+    async generateSchedule(startDate: string, overrideBatch?: { setIdx: number, stepIdx: number }, isSingleDay?: boolean, backupSlotOverride?: number) {
         console.log(`Starting schedule generation from ${startDate}... Override:`, overrideBatch, `SingleDay:`, isSingleDay);
         const { data: members } = await supabase.from('members').select('*').order('attendance_order');
         if (!members || members.length === 0) throw new Error("No members found in database.");
@@ -579,12 +579,16 @@ export const supabaseService = {
                 // If using explicit batches, strictly pull backups from the next batch
                 const effectiveCount = (overrideBatch.stepIdx * 4) + overrideBatch.setIdx + meetingNumSinceStart;
                 const setIdx = effectiveCount % 4;
-                // Cycle number = how many full rounds of all 4 batches have completed
-                // Each cycle, shift backup starting position by 3 within the next batch (0→3→6→9→12)
-                const cycleNumber = Math.floor(effectiveCount / 4);
-                const backupStartOffset = (cycleNumber % 5) * 3;
                 const nextBatchStart = ((setIdx + 1) % 4) * 15;
-                console.log(`  Backup cycle #${cycleNumber}: picking positions ${backupStartOffset}-${backupStartOffset + 2} from next batch (starting at member index ${nextBatchStart})`);
+
+                // Cycle number = how many full rounds of all 4 batches have completed globally
+                // Use baseMeetingCount so March's completed cycle is counted, not just current run
+                const globalMeetingCount = baseMeetingCount + meetingNumSinceStart;
+                // If admin manually overrides backup slot (1-5), use that; otherwise auto-compute
+                const cycleNumber = backupSlotOverride !== undefined ? backupSlotOverride - 1 : Math.floor(globalMeetingCount / 4);
+                const backupStartOffset = (cycleNumber % 5) * 3;
+                console.log(`  Backup cycle #${cycleNumber} (global meeting #${globalMeetingCount}): picking positions ${backupStartOffset}-${backupStartOffset + 2} from next batch (start index ${nextBatchStart})`);
+
                 let bIdx = 0, offset = backupStartOffset;
                 while (bIdx < 3 && offset < 15) {
                     const backupMember = members[nextBatchStart + offset];
@@ -637,7 +641,7 @@ export const supabaseService = {
         }
     },
 
-    async generateMonthSchedule(month: string, year: string, holidayDates: string[], overrideBatch?: { setIdx: number, stepIdx: number }) {
+    async generateMonthSchedule(month: string, year: string, holidayDates: string[], overrideBatch?: { setIdx: number, stepIdx: number }, backupSlotOverride?: number) {
         const startDateString = `${year}-${month.padStart(2, '0')}-01`;
         const lastDateInMonth = format(endOfMonth(parseISO(startDateString)), 'yyyy-MM-dd');
         
@@ -652,7 +656,7 @@ export const supabaseService = {
             const holidayRows = holidayDates.map(date => ({ date, reason: 'Holiday' }));
             await supabase.from('holidays').upsert(holidayRows, { onConflict: 'date' });
         }
-        await this.generateSchedule(startDateString, overrideBatch);
+        await this.generateSchedule(startDateString, overrideBatch, false, backupSlotOverride);
     },
 
     async shiftSchedule(startDate: string, reason: string) {
@@ -712,7 +716,7 @@ export const supabaseService = {
         await supabase.from('schedule').delete().neq('id', 0);
     },
 
-    async generateDateWithOverride(dateStr: string, setIdx: number, stepIdx: number, manualRoster?: Record<string, number>, shiftSubsequent?: boolean) {
+    async generateDateWithOverride(dateStr: string, setIdx: number, stepIdx: number, manualRoster?: Record<string, number>, shiftSubsequent?: boolean, backupSlotOverride?: number) {
         if (manualRoster) {
             const { data: members } = await supabase.from('members').select('*').order('attendance_order');
             if (!members || members.length === 0) throw new Error('No members found');
@@ -724,7 +728,7 @@ export const supabaseService = {
             if (newEntries.length > 0) await supabase.from('schedule').insert(newEntries);
         } else {
             // Cleanly delegate to the unified, history-based generation logic
-            await this.generateSchedule(dateStr, { setIdx, stepIdx }, true);
+            await this.generateSchedule(dateStr, { setIdx, stepIdx }, true, backupSlotOverride);
         }
 
         if (shiftSubsequent) {
@@ -733,7 +737,7 @@ export const supabaseService = {
             const { data: hData } = await supabase.from('holidays').select('date');
             const hList = hData?.map(h => h.date) || [];
             while (nextDate.getDay() === 0 || hList.includes(format(nextDate, 'yyyy-MM-dd'))) nextDate = addDays(nextDate, 1);
-            await this.generateSchedule(format(nextDate, 'yyyy-MM-dd'), { setIdx: (setIdx + 1) % 4, stepIdx: (setIdx === 3) ? (stepIdx + 1) % 5 : stepIdx });
+            await this.generateSchedule(format(nextDate, 'yyyy-MM-dd'), { setIdx: (setIdx + 1) % 4, stepIdx: (setIdx === 3) ? (stepIdx + 1) % 5 : stepIdx }, false, backupSlotOverride);
         }
     },
 

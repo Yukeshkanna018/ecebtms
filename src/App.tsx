@@ -109,6 +109,7 @@ export default function App() {
   const [manualRosterMode, setManualRosterMode] = useState(false);
   const [manualRoster, setManualRoster] = useState<Record<string, number>>({});
   const [generateMonthBatchOverride, setGenerateMonthBatchOverride] = useState<{setIdx: number, stepIdx: number} | null>(null);
+  const [generateMonthBackupSlot, setGenerateMonthBackupSlot] = useState<number | undefined>(undefined);
 
 
 
@@ -447,13 +448,15 @@ export default function App() {
         generateMonthForm.month, 
         generateMonthForm.year, 
         pendingHolidayDates,
-        generateMonthBatchOverride || undefined
+        generateMonthBatchOverride || undefined,
+        generateMonthBackupSlot
       );
       await fetchData();
       if (isAdminLoggedIn) await fetchHolidays();
       setPendingHolidayDates([]);
       setNewHolidayDateInput('');
       setGenerateMonthBatchOverride(null);
+      setGenerateMonthBackupSlot(undefined);
       setGenerateMonthSuccess(true);
 
       setTimeout(() => setGenerateMonthSuccess(false), 4000);
@@ -2324,6 +2327,30 @@ export default function App() {
                             </select>
                           </div>
                         )}
+                      </div>
+
+                      {/* Backup Slot Override */}
+                      <div className="space-y-2">
+                        <label className="text-[10px] uppercase tracking-widest font-bold opacity-40 ml-4">Backup Members Slot</label>
+                        <select
+                          value={generateMonthBackupSlot ?? 0}
+                          onChange={(e) => {
+                            const val = parseInt(e.target.value);
+                            setGenerateMonthBackupSlot(val === 0 ? undefined : val);
+                          }}
+                          className={cn(
+                            "w-full px-6 py-3 rounded-2xl border transition-all outline-none",
+                            isDarkMode ? "bg-black/40 border-white/10 text-white" : "bg-[#F5F5F0] border-black/5 text-black"
+                          )}
+                        >
+                          <option value={0}>Auto (based on meeting count)</option>
+                          <option value={1}>Slot 1 — Members 1, 2, 3 of next batch</option>
+                          <option value={2}>Slot 2 — Members 4, 5, 6 of next batch</option>
+                          <option value={3}>Slot 3 — Members 7, 8, 9 of next batch</option>
+                          <option value={4}>Slot 4 — Members 10, 11, 12 of next batch</option>
+                          <option value={5}>Slot 5 — Members 13, 14, 15 of next batch</option>
+                        </select>
+                        <p className="text-[10px] opacity-30 ml-4">Cycle 1 = Slot 1, Cycle 2 = Slot 2, etc. First cycle ended in March → April should use Slot 2.</p>
                       </div>
 
 
