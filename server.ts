@@ -563,7 +563,9 @@ async function startServer() {
             roleGroups.forEach((roleIndices, setIdx) => {
               const memberSetIdx = currentPerm[setIdx];
               roleIndices.forEach((roleIdx, i) => {
-                const member = batchMembers[memberSetIdx * 3 + i];
+                // Within each triad (3 members), rotate who takes which of the 3 roles based on the cycle index
+                const memberIdxInTriad = (i - (cycleIdx % 3) + 3) % 3;
+                const member = batchMembers[memberSetIdx * 3 + memberIdxInTriad];
                 db.prepare("INSERT INTO schedule (date, roleId, originalMemberId, currentMemberId) VALUES (?, ?, ?, ?)").run(dateStr, ROLES_LIST[roleIdx], member.id, member.id);
               });
             });
